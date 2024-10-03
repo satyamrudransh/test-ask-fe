@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>AKS Machine Test</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
+    <script type="text/javascript" src="menu/quickmenu0.js"></script>
+</head>
+<body>
+<header>
+    <div id="wrap">
+        <div class="logo"><img src="images/logo.png" border="0"></div>
+        <div class="topmenu">
+            <ul>
+                <li><a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></li>
+                <li><a href="change-password.html">Change Password</a>&nbsp;|</li>
+                <li><a href="#" id="logout" onclick="logout()"><img src="images/logout.png" width="16" height="16" border="0" align="absmiddle">&nbsp;&nbsp;Logout</a></li>
+            </ul>
+            <div class="clear"></div>
+        </div>
+        <div class="clear"></div>
+    </div>
+    <div class="clear"></div>
+</header>
+<nav>
+    <ul id="qm0" class="qmmc">
+        <li><a href="admin.html">Dashboard</a></li>
+        <li><a href="#">Product</a>
+            <ul>
+                <li><a href="add-category.html">Add Category</a></li>
+                <li><a href="add-sub-category.html">Add Sub Category</a></li>
+                <li><a href="product.html">Add Product</a></li>
+            </ul>
+        </li>
+    </ul>
+</nav>
+
+<div id="wrap">
+    <div class="clear" style="height:5px;"></div>
+    <div id="wrap2">
+        <h1>Add Sub Category</h1>
+        <br>
+
+        <div class="form-raw">
+            <div class="form-name">Select Category</div>
+            <div class="form-txtfld">
+                <select id="category_id">
+                    <option value="">Select Option</option>
+                    <!-- Options will be populated using JavaScript -->
+                </select>
+            </div>
+        </div>
+        <div class="clear"></div>
+
+        <div class="form-raw">
+            <div class="form-name">Add Sub Category</div>
+            <div class="form-txtfld">
+                <input type="text" id="subcategory_name" placeholder="Enter subcategory name">
+            </div>
+        </div>
+        <div class="clear"></div>
+
+        <div class="form-raw">
+            <div class="form-name">Active</div>
+            <div class="form-txtfld">
+                <input type="checkbox" id="status" checked>
+            </div>
+            <div class="clear"></div>
+        </div>
+
+        <div class="form-raw">
+            <div class="form-name">&nbsp;</div>
+            <div class="form-txtfld" style="width:290px;">
+                <input type="button" class="btn" value="Submit" onclick="submitSubCategory()">
+            </div>
+        </div>
+    </div>
+    <div class="clear">&nbsp;</div>
+</div>
+
+<div id="wrap3">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
+        <tr>
+            <th width="59" align="left" valign="middle">Sr.No.</th>
+            <th width="752" align="left" valign="middle">Category Name</th>
+            <th width="752" align="left" valign="middle">Sub Category Name</th>
+            <th width="77" align="left" valign="middle">Status</th>
+            <th width="54" align="left" valign="middle">Edit</th>
+            <th width="71" align="left" valign="middle">Remove</th>
+        </tr>
+        <tbody id="subcategory-list">
+            <!-- Subcategories will be populated here -->
+        </tbody>
+    </table>
+    <div class="clear">&nbsp;</div>
+</div>
+
+<div class="clear"></div>
+<footer>
+    <footer class="whitefoter">
+        <div class="whitefooter-cont">
+            <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
+            <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
+                <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd."></a>
+            <div class="clear"></div>
+        </div>
+    </footer>
+</footer>
+
+<script>
+// Fetch active categories from the Laravel API
+async function fetchCategories() {
+    try {
+        const response = await fetch('http://localhost:8096/api/active-categories');
+        const categories = await response.json();
+        const categorySelect = document.getElementById('category_id');
+        
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+    }
+}
+
+// Fetch subcategories and populate the table
+async function fetchSubCategories() {
+    try {
+        const response = await fetch('http://localhost:8096/api/subcategories');
+        const subcategories = await response.json();
+        const subcategoryList = document.getElementById('subcategory-list');
+        subcategoryList.innerHTML = ''; // Clear the list before populating
+        
+        subcategories.forEach((subcategory, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td align="left" valign="top">${index + 1}</td>
+                <td align="left" valign="top">${subcategory.category.name}</td>
+                <td align="left" valign="top">${subcategory.name}</td>
+                <td align="left" valign="top"><strong>${subcategory.status ? 'Active' : 'Inactive'}</strong></td>
+                <td align="left" valign="top"><a href="#" onclick="editSubCategory(${subcategory.id})">Edit</a></td>
+                <td align="center" valign="top"><a href="#" onclick="deleteSubCategory(${subcategory.id})"><img src="images/icon-bin.jpg" alt="" width="25" height="25" border="0" align="absmiddle" /></a></td>
+            `;
+            subcategoryList.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error fetching subcategories:', error);
+    }
+}
+
+// Submit subcategory to Laravel API
+async function submitSubCategory() {
+    const categoryId = document.getElementById('category_id').value;
+    const subcategoryName = document.getElementById('subcategory_name').value;
+    const status = document.getElementById('status').checked;
+
+    if (!categoryId || !subcategoryName) {
+        alert('Please fill in all fields.');
+        return;
+    }
+
+    const data = {
+        category_id: categoryId,
+        name: subcategoryName,
+        status: status ? 1 : 0
+    };
+
+    try {
+        const response = await fetch('http://localhost:8096/api/subcategories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert('Subcategory added successfully!');
+            fetchSubCategories(); // Refresh the subcategory list
+            clearForm(); // Clear the input fields
+        } else {
+            alert('Error adding subcategory.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Edit subcategory function
+async function editSubCategory(subcategoryId) {
+    try {
+        const response = await fetch(`http://localhost:8096/api/subcategories/${subcategoryId}`);
+        const subcategory = await response.json();
+
+        // Populate the form with existing data
+        document.getElementById('category_id').value = subcategory.category.id;
+        document.getElementById('subcategory_name').value = subcategory.name;
+        document.getElementById('status').checked = subcategory.status;
+
+        // Change the button to update instead of submit
+        const submitButton = document.querySelector('.btn');
+        submitButton.value = 'Update';
+        submitButton.setAttribute('onclick', `updateSubCategory(${subcategoryId})`);
+
+    } catch (error) {
+        console.error('Error fetching subcategory:', error);
+    }
+}
+
+// Update subcategory function
+async function updateSubCategory(subcategoryId) {
+    const categoryId = document.getElementById('category_id').value;
+    const subcategoryName = document.getElementById('subcategory_name').value;
+    const status = document.getElementById('status').checked;
+
+    if (!categoryId || !subcategoryName) {
+        alert('Please fill in all fields.');
+        return;
+    }
+
+    const data = {
+        category_id: categoryId,
+        name: subcategoryName,
+        status: status ? 1 : 0
+    };
+
+    try {
+        const response = await fetch(`http://localhost:8096/api/subcategories/${subcategoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert('Subcategory updated successfully!');
+            fetchSubCategories(); // Refresh the subcategory list
+            clearForm(); // Clear the input fields
+        } else {
+            alert('Error updating subcategory.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Delete subcategory function
+async function deleteSubCategory(subcategoryId) {
+    const confirmDelete = confirm('Are you sure you want to delete this subcategory?');
+    if (!confirmDelete) return;
+
+    try {
+        const response = await fetch(`http://localhost:8096/api/subcategories/${subcategoryId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Subcategory deleted successfully!');
+            fetchSubCategories(); // Refresh the subcategory list
+        } else {
+            alert('Error deleting subcategory.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Clear form fields
+function clearForm() {
+    document.getElementById('category_id').value = '';
+    document.getElementById('subcategory_name').value = '';
+    document.getElementById('status').checked = true;
+    const submitButton = document.querySelector('.btn');
+    submitButton.value = 'Submit';
+    submitButton.setAttribute('onclick', 'submitSubCategory()');
+}
+
+// Logout function
+async function logout() {
+    const confirmLogout = confirm('Are you sure you want to logout?');
+    if (!confirmLogout) return;
+
+    try {
+        const response = await fetch('http://localhost:8096/api/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            }
+        });
+
+        if (response.ok) {
+            alert('Logged out successfully!');
+            localStorage.removeItem('token'); // Clear the token
+            window.location.href = 'index.html'; // Redirect to login page
+        } else {
+            alert('Error logging out.');
+        }
+    } catch (error) {
+        console.error('Error during logout:', error);
+    }
+}
+
+// Initialize the page
+fetchCategories();
+fetchSubCategories();
+</script>
+</body>
+</html>
