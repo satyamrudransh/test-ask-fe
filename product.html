@@ -8,6 +8,10 @@
   <!-- Menu start --------------->
   <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
   <script type="text/javascript" src="menu/quickmenu0.js"></script>
+  <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js">
+
+
+  </script>
 
   <script>
     // Function to fetch active categories
@@ -47,6 +51,7 @@
     }
 
     let titleCount = 1; // To keep track of the number of titles
+    let pdfCount = 1; // To keep track of the number of PDF uploads
 
     // Function to add more description fields dynamically
     function addMoreDescription() {
@@ -82,6 +87,34 @@
       descriptionContainer.insertAdjacentHTML('beforeend', newField);
     }
 
+    // Function to add more PDF fields dynamically
+    function addMorePDF() {
+      pdfCount++;
+      const pdfContainer = document.getElementById('pdfContainer');
+
+      const newPDFField = `
+        <div class="pdf-block" id="pdf-${pdfCount}">
+          <div class="form-raw">
+            <div class="form-name">PDF Heading ${pdfCount}</div>
+            <div class="form-txtfld">
+              <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
+            </div>
+          </div>
+          <div class="form-raw">
+            <div class="form-name">&nbsp;</div>
+            <div class="form-txtfld txtfld50">
+              <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
+            </div>
+            <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
+              <img src="images/delete.gif" alt="Delete">
+            </a>
+          </div>
+        </div>
+      `;
+
+      pdfContainer.insertAdjacentHTML('beforeend', newPDFField);
+    }
+
     // Function to delete a title section
     function deleteDescription(fieldId) {
       const fieldToRemove = document.getElementById(fieldId);
@@ -90,13 +123,28 @@
       }
     }
 
+    // Function to delete a PDF section
+    function deletePDF(fieldId) {
+      const pdfToRemove = document.getElementById(fieldId);
+      if (pdfToRemove) {
+        pdfToRemove.remove();
+      }
+    }
+
     // Function to handle form submission and add product
     async function addProduct() {
       const productName = document.getElementById('productName').value;
+      // const productStatus = document.getElementById('productStatus').value ? 1 : 0;
+      const isActive = document.querySelector('input[type="checkbox"]').checked ? 1 : 0; // Get the checkbox value (1 for checked, 0 for unchecked)
+
       const shortDescription = document.getElementById('shortDescription').value;
       const selectedCategoryId = document.getElementById('categorySelect').value;
       const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect').selectedOptions)
         .map(option => option.value);
+      // const content = CKEDITOR.instances.editorContent.getData();
+      // Get the content from CKEditor (features field)
+      const features = CKEDITOR.instances.editorFeatures.getData(); // Get CKEditor data
+
 
       // Validate if category, subcategory, and product name are selected
       if (!productName || !selectedCategoryId || selectedSubcategoryIds.length === 0) {
@@ -104,31 +152,24 @@
         return;
       }
 
-      // Retrieve product image and PDF files
+      // Retrieve product image
       const productImageInput = document.getElementById('productImage');
       const productImage = productImageInput ? productImageInput.files[0] : null;
-
-      const pdfFilesInput = document.getElementById('pdfFiles');
-      const pdfFiles = pdfFilesInput ? pdfFilesInput.files : null;
 
       // Create FormData to send the subcategories, image, and title data
       const formData = new FormData();
       formData.append('product_name', productName);
       formData.append('short_description', shortDescription);
       formData.append('category_id', selectedCategoryId);
+      formData.append('status', isActive); // Append the status (1 or 0)
+      formData.append('features', features); // Append the CKEditor content (features)
+
       if (productImage) formData.append('product_image', productImage);
 
       // Append each subcategory to the FormData
       selectedSubcategoryIds.forEach(subcategoryId => {
         formData.append('subcategories[]', subcategoryId);
       });
-
-      // Append PDF files (if selected)
-      if (pdfFiles) {
-        Array.from(pdfFiles).forEach(pdf => {
-          formData.append('pdf_files[]', pdf);
-        });
-      }
 
       // Collect and append title, heading, and description data
       document.querySelectorAll('.title-block').forEach((titleBlock, index) => {
@@ -140,6 +181,18 @@
         formData.append(`titles[${index}][title]`, title);
         formData.append(`titles[${index}][heading]`, heading);
         formData.append(`titles[${index}][description]`, description);
+      });
+
+      // Collect and append PDF data
+      document.querySelectorAll('.pdf-block').forEach((pdfBlock, index) => {
+        const pdfHeading = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][heading]"]`)?.value || "";
+        const pdfFile = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][file]"]`)?.files[0];
+
+        // Append PDF heading and file to form data
+        if (pdfFile) {
+          formData.append(`pdf_headings[${index}]`, pdfHeading);
+          formData.append(`pdf_files[${index}]`, pdfFile);
+        }
       });
 
       try {
@@ -174,17 +227,14 @@
           const shortDescription = product.short_description ? product.short_description : 'N/A';
           const fullDescription = product.features ? product.features : 'N/A';
 
-          // Get subcategories as a comma-separated string
           const subcategories = product.subcategories.length > 0
             ? product.subcategories.map(subcat => subcat.name).join(', ')
             : 'No Subcategories';
 
-          // Get the first category name from subcategories (if available)
           const categoryName = product.subcategories.length > 0
             ? product.subcategories[0].category.name
             : 'No Category';
 
-          // Get the first PDF URL, if available
           const pdfLink = product.pdfs.length > 0
             ? `<a href="${product.pdfs[0].pdf_url}" target="_blank">View PDF</a>`
             : 'No PDF';
@@ -205,9 +255,7 @@
               <td align="left" valign="top"><strong>${status}</strong></td>
               <td align="left" valign="top">${pdfLink}</td>
               <td align="left" valign="top"><a href="#">Edit</a></td>
-              <td align="center" valign="top">
-                <a href="#"><img src="images/icon-bin.jpg" alt="Delete" width="25" height="25" /></a>
-              </td>
+              <td align="center" valign="top"><a href="#"><img src="images/icon-bin.jpg" alt="Delete" width="25" height="25"></a></td>
             </tr>
           `;
         });
@@ -221,6 +269,16 @@
       fetchCategories();
       fetchProducts(); // Fetch products on page load
     };
+
+    // Initialize CKEditor for the features field
+    window.onload = function () {
+      fetchCategories();
+      fetchProducts(); // Fetch products on page load
+
+      // Initialize CKEditor for features field
+      CKEDITOR.replace('editorFeatures');
+    };
+
   </script>
 </head>
 
@@ -307,7 +365,8 @@
         <div class="form-raw">
           <div class="form-name">&nbsp;</div>
           <div class="form-txtfld txtfld50"><input type="text" name="titles[1][heading]" placeholder="Heading"></div>
-          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][description]" placeholder="Description"></div>
+          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][description]" placeholder="Description">
+          </div>
           <a href="javascript:void(0);" onclick="deleteDescription('title-1')">
             <img src="images/delete.gif" alt="Delete">
           </a>
@@ -325,41 +384,55 @@
 
     <div class="clear"></div>
   </div>
-  
+
+  <!-- CKEditor Content Field (Features) -->
   <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Features</h1>
   <br>
   <div class="form-raw" style="width:100%;">
     <div class="form-name">Content</div>
     <div class="form-txtfld" style="width:780px;">
-      <textarea style="width:100%; height:500px;">CK</textarea>
+      <textarea id="editorFeatures" name="features"></textarea> <!-- CKEditor field for features -->
     </div>
   </div>
 
-  <div class="clear"></div>
-  <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Upload PDF</h1>
-  <br>
 
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="PDF heading"></div>
-    <div class="form-txtfld txtfld50"><input type="file" id="pdfFiles" multiple></div>
+  <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Upload PDFs</h1>
+  <div id="pdfContainer">
+    <div class="pdf-block" id="pdf-1">
+      <div class="form-raw">
+        <div class="form-name">PDF Heading 1</div>
+        <div class="form-txtfld">
+          <input type="text" name="pdfs[1][heading]" placeholder="PDF Heading 1">
+        </div>
+      </div>
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld txtfld50"><input type="file" name="pdfs[1][file]" accept=".pdf"></div>
+      </div>
+    </div>
   </div>
 
-  <div class="clear"></div>
+  <!-- Button to Add More PDFs -->
+  <div class="form-raw">
+    <div class="form-name">&nbsp;</div>
+    <div class="form-txtfld" style="width: 320px; text-align: right;">
+      <a href="javascript:void(0)" onclick="addMorePDF()">Add More PDFs +</a>
+    </div>
+  </div>
+
   <div class="form-raw">
     <div class="form-name">Active</div>
     <div class="form-txtfld">
-      <input type="checkbox">
+      <input type="checkbox" id="activeStatus">
     </div>
-    <div class="clear"></div>
   </div>
 
-  <div class="clear"></div>
   <div class="form-raw">
     <div class="form-name">&nbsp;</div>
     <div class="form-txtfld">
       <input type="button" class="btn" value="Submit" onclick="addProduct()">
     </div>
+  </div>
   </div>
 
   <div id="wrap2">
