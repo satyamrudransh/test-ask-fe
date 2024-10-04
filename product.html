@@ -131,17 +131,18 @@
       }
     }
     // Function to append the newly added product to the table dynamically
-    // Function to append the newly added product to the table dynamically
-    // Function to append the newly added product to the table dynamically
     function appendNewProductToTable(product) {
       const productTableBody = document.getElementById('productTableBody');
       const status = product.status === "1" ? 'Active' : 'Inactive';
-      const subcategories = product.subcategories ? product.subcategories.map(subcat => subcat.name).join(', ') : '';
+      const subcategories = product.subcategories ? product.subcategories.map(subcat => subcat.name).join(', ') : 'No Subcategories';
+
+      // Initialize the pdfs array if it's undefined or null
+      const pdfs = product.pdfs || [];
 
       // Handle multiple PDFs
       let pdfLinks = '';
-      if (product.pdfs.length > 0) {
-        product.pdfs.forEach((pdf, index) => {
+      if (pdfs.length > 0) {
+        pdfs.forEach((pdf, index) => {
           pdfLinks += `<a href="${pdf.pdf_url}" target="_blank">View PDF ${index + 1}</a><br>`;
         });
       } else {
@@ -152,33 +153,87 @@
 
       // Create a new row for the product
       const rowHTML = `
-    <tr>
-      <td align="left" valign="top">${product.id}</td>
-      <td align="left" valign="top">${product.subcategories[0]?.category?.name || 'No Category'}</td>
-      <td align="left" valign="top">${subcategories}</td>
-      <td align="left" valign="top">${product.name}</td>
-      <td align="left" valign="top">${product.short_description}</td>
-      <td align="left" valign="top">${product.features}</td>
-      <td align="left" valign="top">${imageUrl}</td>
-      <td align="left" valign="top"><strong>${status}</strong></td>
-      <td align="left" valign="top">${pdfLinks}</td>
-      <td align="left" valign="top">
-        <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
-      </td>
-      <td align="center" valign="top">
-        <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
-          <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
-        </a>
-      </td>
-    </tr>
-  `;
+        <tr>
+            <td align="left" valign="top">${product.id}</td>
+            <td align="left" valign="top">${product.subcategories[0]?.category?.name || 'No Category'}</td>
+            <td align="left" valign="top">${subcategories}</td>
+            <td align="left" valign="top">${product.name}</td>
+            <td align="left" valign="top">${product.short_description}</td>
+            <td align="left" valign="top">${product.features}</td>
+            <td align="left" valign="top">${imageUrl}</td>
+            <td align="left" valign="top"><strong>${status}</strong></td>
+            <td align="left" valign="top">${pdfLinks}</td>
+            <td align="left" valign="top">
+                <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
+            </td>
+            <td align="center" valign="top">
+                <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
+                    <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
+                </a>
+            </td>
+        </tr>
+    `;
 
       // Append the new row to the table body
       productTableBody.insertAdjacentHTML('beforeend', rowHTML);
     }
 
 
+    // Function to reset form fields
+    function resetFormFields() {
+      // Clear input fields
+      document.getElementById('productName').value = '';
+      document.getElementById('shortDescription').value = '';
+      document.getElementById('categorySelect').value = '';
+      document.getElementById('subcategorySelect').innerHTML = ''; // Clear subcategory select options
 
+      // Clear CKEditor content
+      CKEDITOR.instances.editorFeatures.setData('');
+
+      // Reset PDF and Title sections
+      document.getElementById('descriptionContainer').innerHTML = `
+      <div class="title-block" id="title-1">
+        <div class="form-raw">
+          <div class="form-name">Title 1</div>
+          <div class="form-txtfld">
+            <input type="text" name="titles[1][title]" placeholder="Title 1">
+          </div>
+        </div>
+        <div class="form-raw">
+          <div class="form-name">&nbsp;</div>
+          <div class="form-txtfld txtfld50">
+            <input type="text" name="titles[1][heading]" placeholder="Heading">
+          </div>
+          <div class="form-txtfld txtfld50">
+            <input type="text" name="titles[1][description]" placeholder="Description">
+          </div>
+          <a href="javascript:void(0);" onclick="deleteDescription('title-1')">
+            <img src="images/delete.gif" alt="Delete">
+          </a>
+        </div>
+      </div>
+    `;
+
+      document.getElementById('pdfContainer').innerHTML = `
+      <div class="pdf-block" id="pdf-1">
+        <div class="form-raw">
+          <div class="form-name">PDF Heading 1</div>
+          <div class="form-txtfld">
+            <input type="text" name="pdfs[1][heading]" placeholder="PDF Heading 1">
+          </div>
+        </div>
+        <div class="form-raw">
+          <div class="form-name">&nbsp;</div>
+          <div class="form-txtfld txtfld50">
+            <input type="file" name="pdfs[1][file]" accept=".pdf">
+          </div>
+        </div>
+      </div>
+    `;
+
+      // Reset the active status checkbox
+      document.getElementById('activeStatus').checked = false;
+    }
 
     // Function to handle form submission and add product
     async function addProduct() {
@@ -232,9 +287,14 @@
         });
 
         if (response.ok) {
+          resetFormFields(); // Clear the form fields after successful submission
+          location.reload(); // Refresh the page after successful submission
           const newProduct = await response.json();
           appendNewProductToTable(newProduct); // Add the new product to the table dynamically
           alert("Product added successfully!");
+          resetFormFields(); // Clear the form fields after successful submission
+          location.reload(); // Refresh the page after successful submission
+
         } else {
           alert("Failed to add product. Please try again.");
         }
@@ -242,7 +302,6 @@
         console.error("Error adding product:", error);
       }
     }
-
 
 
     // Function to fetch and display products in the table
