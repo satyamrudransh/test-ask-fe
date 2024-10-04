@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>AKS Machine Test - Update Product</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
+  <script type="text/javascript" src="menu/quickmenu0.js"></script>
+  <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+
+  <script>
+    // Function to fetch active categories
+    async function fetchCategories() {
+      try {
+        const response = await fetch('http://localhost:8096/api/active-categories');
+        const categories = await response.json();
+        const categorySelect = document.getElementById('categorySelect');
+
+        categorySelect.innerHTML = `<option>Select Option</option>`;
+        categories.forEach(category => {
+          if (category.status === 1) {
+            categorySelect.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    }
+
+    // Function to fetch active subcategories based on selected category
+    async function fetchSubcategories(categoryId) {
+      try {
+        const response = await fetch(`http://localhost:8096/api/cat-subcategories?category_id=${categoryId}`);
+        const subcategories = await response.json();
+        const subcategorySelect = document.getElementById('subcategorySelect');
+
+        subcategorySelect.innerHTML = ''; // Clear previous options
+        subcategories.forEach(subcategory => {
+          if (subcategory.status === 1) {
+            subcategorySelect.innerHTML += `<option value="${subcategory.id}">${subcategory.name}</option>`;
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching subcategories:", error);
+      }
+    }
+
+    let titleCount = 1; // To keep track of the number of titles
+    let pdfCount = 1; // To keep track of the number of PDF uploads
+
+    // Function to add more description fields dynamically
+    function addMoreDescription() {
+      titleCount++; // Increment title count
+      const descriptionContainer = document.getElementById('descriptionContainer');
+
+      const newFieldId = `title-${titleCount}`; // Unique ID for each title section
+
+      const newField = `
+        <div class="title-block" id="${newFieldId}">
+          <div class="form-raw">
+            <div class="form-name">Title ${titleCount}</div>
+            <div class="form-txtfld">
+              <input type="text" name="titles[${titleCount}][title]" placeholder="Title ${titleCount}">
+            </div>
+          </div>
+          <div class="form-raw">
+            <div class="form-name">&nbsp;</div>
+            <div class="form-txtfld txtfld50">
+              <input type="text" name="titles[${titleCount}][heading]" placeholder="Heading">
+            </div>
+            <div class="form-txtfld txtfld50">
+              <input type="text" name="titles[${titleCount}][description]" placeholder="Description">
+            </div>
+            <a href="javascript:void(0);" onclick="deleteDescription('${newFieldId}')">
+              <img src="images/delete.gif" alt="Delete">
+            </a>
+          </div>
+        </div>
+      `;
+
+      descriptionContainer.insertAdjacentHTML('beforeend', newField);
+    }
+
+    // Function to add more PDF fields dynamically
+    function addMorePDF() {
+      pdfCount++;
+      const pdfContainer = document.getElementById('pdfContainer');
+
+      const newPDFField = `
+        <div class="pdf-block" id="pdf-${pdfCount}">
+          <div class="form-raw">
+            <div class="form-name">PDF Heading ${pdfCount}</div>
+            <div class="form-txtfld">
+              <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
+            </div>
+          </div>
+          <div class="form-raw">
+            <div class="form-name">&nbsp;</div>
+            <div class="form-txtfld txtfld50">
+              <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
+            </div>
+            <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
+              <img src="images/delete.gif" alt="Delete">
+            </a>
+          </div>
+        </div>
+      `;
+
+      pdfContainer.insertAdjacentHTML('beforeend', newPDFField);
+    }
+
+    // Function to delete a title section
+    function deleteDescription(fieldId) {
+      const fieldToRemove = document.getElementById(fieldId);
+      if (fieldToRemove) {
+        fieldToRemove.remove();
+      }
+    }
+
+    // Function to delete a PDF section
+    function deletePDF(fieldId) {
+      const pdfToRemove = document.getElementById(fieldId);
+      if (pdfToRemove) {
+        pdfToRemove.remove();
+      }
+    }
+
+    // // Get Product ID from URL
+    // function getProductIdFromURL() {
+    //   const urlParams = new URLSearchParams(window.location.search);
+    //   return urlParams.get('productId');
+    // }
+
+    async function editProduct(productId) {
+      try {
+        // Fetch the product data from the API
+        const response = await fetch(`http://localhost:8096/api/product/${productId}`);
+        const product = await response.json();
+
+        // Populate the form fields with the product data
+        document.getElementById('productName').value = product.name;
+        document.getElementById('shortDescription').value = product.short_description;
+
+        // Set category and subcategories
+        document.getElementById('categorySelect').value = product.subcategories[0].category.id;
+
+        // Clear and populate subcategories
+        const subcategorySelect = document.getElementById('subcategorySelect');
+        subcategorySelect.innerHTML = ''; // Clear previous subcategories
+
+        product.subcategories.forEach(subcategory => {
+          let option = document.createElement('option');
+          option.value = subcategory.id;
+          option.text = subcategory.name;
+          option.selected = true; // Automatically select the relevant subcategories
+          subcategorySelect.appendChild(option);
+        });
+
+        // Set status (checkbox)
+        document.getElementById('activeStatus').checked = product.status === "1";
+
+        // Populate titles (clear existing, then add from product)
+        document.getElementById('descriptionContainer').innerHTML = ''; // Clear previous titles
+        product.titles.forEach((title, index) => {
+          addMoreDescription(); // Add a new title block dynamically
+
+          const titleField = document.querySelector(`input[name="titles[${index + 1}][title]"]`);
+          const headingField = document.querySelector(`input[name="titles[${index + 1}][heading]"]`);
+          const descriptionField = document.querySelector(`input[name="titles[${index + 1}][description]"]`);
+
+          if (titleField) titleField.value = title.title;
+          if (headingField) headingField.value = title.heading;
+          if (descriptionField) descriptionField.value = title.description;
+        });
+
+        // Set the CKEditor content (features)
+        CKEDITOR.instances.editorFeatures.setData(product.features);
+
+        // Populate PDFs (clear existing, then add from product)
+        document.getElementById('pdfContainer').innerHTML = ''; // Clear previous PDFs
+        product.pdfs.forEach((pdf, index) => {
+          addMorePDF(); // Add more PDF fields dynamically
+          const pdfHeadingField = document.querySelector(`input[name="pdfs[${index + 1}][heading]"]`);
+          if (pdfHeadingField) pdfHeadingField.value = pdf.heading;
+          const pdfFileInput = document.querySelector(`input[name="pdfs[${index + 1}][file]"]`);
+          if (pdfFileInput) pdfFileInput.dataset.pdfUrl = pdf.pdf_url; // Store the existing PDF URL
+        });
+
+      } catch (error) {
+        console.error("Error fetching product data:", error);
+      }
+    }
+    // Function to extract productId from the URL
+    function getProductIdFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('productId');
+    }
+
+    // Function to handle form submission and update product
+    async function updateProduct() {
+      const productId = getProductIdFromURL(); // Extract the productId from the URL
+
+      if (!productId) {
+        alert("Product ID not found. Cannot proceed with the update.");
+        return;
+      }
+
+      const productName = document.getElementById('productName')?.value || '';
+      const isActive = document.querySelector('input[type="checkbox"]')?.checked ? 1 : 0;
+      const shortDescription = document.getElementById('shortDescription')?.value || '';
+      const selectedCategoryId = document.getElementById('categorySelect')?.value || '';
+      const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect')?.selectedOptions || [])
+        .map(option => option.value);
+
+      // Get the content from CKEditor (features field)
+      const features = CKEDITOR.instances.editorFeatures?.getData() || ''; // Get CKEditor data
+
+      // Validate if category, subcategory, and product name are selected
+      if (!productName || !selectedCategoryId || selectedSubcategoryIds.length === 0) {
+        alert("Please fill all the required fields.");
+        return;
+      }
+
+      // Retrieve product image
+      const productImageInput = document.getElementById('productImage');
+      const productImage = productImageInput ? productImageInput.files[0] : null;
+
+      // Create FormData to send the updated subcategories, image, and title data
+      const formData = new FormData();
+      formData.append('product_name', productName);
+      formData.append('short_description', shortDescription);
+      formData.append('category_id', selectedCategoryId);
+      formData.append('status', isActive); // Append the status (1 or 0)
+      formData.append('features', features); // Append the CKEditor content (features)
+
+      if (productImage) formData.append('product_image', productImage);
+
+      // Append each subcategory to the FormData
+      selectedSubcategoryIds.forEach(subcategoryId => {
+        formData.append('subcategories[]', subcategoryId);
+      });
+
+      // Collect and append title, heading, and description data
+      document.querySelectorAll('.title-block').forEach((titleBlock, index) => {
+        const title = titleBlock.querySelector(`input[name="titles[${index + 1}][title]"]`)?.value || '';
+        const heading = titleBlock.querySelector(`input[name="titles[${index + 1}][heading]"]`)?.value || '';
+        const description = titleBlock.querySelector(`input[name="titles[${index + 1}][description]"]`)?.value || '';
+
+        // Append each title field to the form data
+        formData.append(`titles[${index}][title]`, title);
+        formData.append(`titles[${index}][heading]`, heading);
+        formData.append(`titles[${index}][description]`, description);
+      });
+
+      // Collect and append PDF data
+      document.querySelectorAll('.pdf-block').forEach((pdfBlock, index) => {
+        const pdfHeading = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][heading]"]`)?.value || '';
+        const pdfFile = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][file]"]`)?.files[0];
+
+        // Append PDF heading and file to form data
+        if (pdfFile) {
+          formData.append(`pdf_headings[${index}]`, pdfHeading);
+          formData.append(`pdf_files[${index}]`, pdfFile);
+        }
+      });
+
+      try {
+        // Send a POST request to the update product endpoint
+        const response = await fetch(`http://localhost:8096/api/product/${productId}`, {
+          method: 'POST', // or 'PUT' if the API uses that for updates
+          body: formData
+        });
+
+        if (response.ok) {
+          alert("Product updated successfully!");
+        } else {
+          alert("Failed to update product. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error updating product:", error);
+      }
+    }
+
+    // Call this function on page load to automatically fill the form with existing data for editing
+    window.onload = function () {
+      fetchCategories();
+      fetchSubcategories();
+      CKEDITOR.replace('editorFeatures');
+      const productId = getProductIdFromURL();
+      if (productId) {
+        editProduct(productId); // Fetch the existing product data and populate the form
+      }
+    };
+
+    // On page load, get the product details for editing
+    window.onload = function () {
+      fetchCategories(); // Fetch categories
+      const productId = getProductIdFromURL(); // Get the product ID from URL
+
+      if (productId) {
+        editProduct(productId); // Fetch and populate the form for editing
+      }
+
+      CKEDITOR.replace('editorFeatures'); // Initialize CKEditor for features field
+    };
+  </script>
+</head>
+
+<body>
+  <header>
+    <div id="wrap">
+      <div class="logo"><img src="images/logo.png" border="0"></div>
+      <div class="topmenu">
+        <ul>
+          <li><a href="change-password.html">Change Password</a> |</li>
+          <li><a href="index.html"><img src="images/logout.png" width="16" height="16" border="0"
+                align="absmiddle">&nbsp;&nbsp;Logout</a></li>
+        </ul>
+        <div class="clear"></div>
+      </div>
+      <div class="clear"></div>
+    </div>
+    <div class="clear"></div>
+  </header>
+
+  <nav>
+    <ul id="qm0" class="qmmc">
+      <li><a href="admin.html">Dashboard</a></li>
+      <li><a href="#" class="qmactive">Product</a>
+        <ul>
+          <li><a href="add-category.html">Add Category</a></li>
+          <li><a href="add-sub-category.html">Add Sub Category</a></li>
+          <li><a href="product.html">Add Product</a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+
+  <div id="wrap">
+    <h1>Update Product</h1>
+
+    <div class="form-raw">
+      <div class="form-name">Select Category</div>
+      <div class="form-txtfld">
+        <select id="categorySelect" onchange="fetchSubcategories(this.value)">
+          <option>Select Option</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-raw">
+      <div class="form-name">Select Sub Category</div>
+      <div class="form-txtfld">
+        <select id="subcategorySelect" multiple="multiple" style="height: 100px;"></select>
+      </div>
+    </div>
+
+    <div class="form-raw">
+      <div class="form-name">Product Name</div>
+      <div class="form-txtfld">
+        <input type="text" id="productName">
+      </div>
+    </div>
+
+    <div class="form-name">Product Image</div>
+    <div class="form-txtfld">
+      <input type="file" id="productImage">
+      <div class="form-name"> Image Size (Width=560px, Height=390px) (Product page)</div>
+    </div>
+
+    <div class="form-raw">
+      <div class="form-name">Short Description</div>
+      <div class="form-txtfld">
+        <textarea id="shortDescription"></textarea>
+      </div>
+    </div>
+
+    <div class="form-raw" style="width:100%;">
+      <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Description</h1>
+      <div id="descriptionContainer"></div>
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld" style="width: 320px; text-align: right;">
+          <a href="javascript:void(0)" onclick="addMoreDescription()">Add More +</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-raw" style="width:100%;">
+      <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Features</h1>
+      <div class="form-name">Content</div>
+      <div class="form-txtfld" style="width:780px;">
+        <textarea id="editorFeatures" name="features"></textarea>
+      </div>
+    </div>
+
+    <div class="form-raw" style="width:100%;">
+      <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Upload PDFs</h1>
+      <div id="pdfContainer"></div>
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld" style="width: 320px; text-align: right;">
+          <a href="javascript:void(0)" onclick="addMorePDF()">Add More PDFs +</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-raw">
+      <div class="form-name">Active</div>
+      <div class="form-txtfld">
+        <input type="checkbox" id="activeStatus">
+      </div>
+    </div>
+
+    <div class="form-raw">
+      <div class="form-name">&nbsp;</div>
+      <div class="form-txtfld">
+        <!-- Update the button to call the new updateProduct() function -->
+        <input type="button" class="btn" value="Update" onclick="updateProduct()">
+      </div>
+    </div>
+
+    <div class="clear"></div>
+  </div>
+
+  <footer>
+    <footer class="whitefoter">
+      <div class="whitefooter-cont">
+        <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
+        <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
+          <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd.">
+        </a>
+        <div class="clear"></div>
+      </div>
+    </footer>
+  </footer>
+</body>
+
+</html>

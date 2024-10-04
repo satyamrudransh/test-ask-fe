@@ -130,65 +130,95 @@
         pdfToRemove.remove();
       }
     }
+    // Function to append the newly added product to the table dynamically
+    // Function to append the newly added product to the table dynamically
+    // Function to append the newly added product to the table dynamically
+    function appendNewProductToTable(product) {
+      const productTableBody = document.getElementById('productTableBody');
+      const status = product.status === "1" ? 'Active' : 'Inactive';
+      const subcategories = product.subcategories ? product.subcategories.map(subcat => subcat.name).join(', ') : '';
+
+      // Handle multiple PDFs
+      let pdfLinks = '';
+      if (product.pdfs.length > 0) {
+        product.pdfs.forEach((pdf, index) => {
+          pdfLinks += `<a href="${pdf.pdf_url}" target="_blank">View PDF ${index + 1}</a><br>`;
+        });
+      } else {
+        pdfLinks = 'No PDF';
+      }
+
+      const imageUrl = product.image_url ? `<a href="${product.image_url}" target="_blank">View Image</a>` : 'No Image';
+
+      // Create a new row for the product
+      const rowHTML = `
+    <tr>
+      <td align="left" valign="top">${product.id}</td>
+      <td align="left" valign="top">${product.subcategories[0]?.category?.name || 'No Category'}</td>
+      <td align="left" valign="top">${subcategories}</td>
+      <td align="left" valign="top">${product.name}</td>
+      <td align="left" valign="top">${product.short_description}</td>
+      <td align="left" valign="top">${product.features}</td>
+      <td align="left" valign="top">${imageUrl}</td>
+      <td align="left" valign="top"><strong>${status}</strong></td>
+      <td align="left" valign="top">${pdfLinks}</td>
+      <td align="left" valign="top">
+        <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
+      </td>
+      <td align="center" valign="top">
+        <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
+          <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
+        </a>
+      </td>
+    </tr>
+  `;
+
+      // Append the new row to the table body
+      productTableBody.insertAdjacentHTML('beforeend', rowHTML);
+    }
+
+
+
 
     // Function to handle form submission and add product
     async function addProduct() {
       const productName = document.getElementById('productName').value;
-      // const productStatus = document.getElementById('productStatus').value ? 1 : 0;
-      const isActive = document.querySelector('input[type="checkbox"]').checked ? 1 : 0; // Get the checkbox value (1 for checked, 0 for unchecked)
-
+      const isActive = document.querySelector('input[type="checkbox"]').checked ? 1 : 0;
       const shortDescription = document.getElementById('shortDescription').value;
       const selectedCategoryId = document.getElementById('categorySelect').value;
-      const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect').selectedOptions)
-        .map(option => option.value);
-      // const content = CKEDITOR.instances.editorContent.getData();
-      // Get the content from CKEditor (features field)
+      const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect').selectedOptions).map(option => option.value);
       const features = CKEDITOR.instances.editorFeatures.getData(); // Get CKEditor data
+      const productImageInput = document.getElementById('productImage');
+      const productImage = productImageInput ? productImageInput.files[0] : null;
 
-
-      // Validate if category, subcategory, and product name are selected
       if (!productName || !selectedCategoryId || selectedSubcategoryIds.length === 0) {
         alert("Please fill all the required fields.");
         return;
       }
 
-      // Retrieve product image
-      const productImageInput = document.getElementById('productImage');
-      const productImage = productImageInput ? productImageInput.files[0] : null;
-
-      // Create FormData to send the subcategories, image, and title data
       const formData = new FormData();
       formData.append('product_name', productName);
       formData.append('short_description', shortDescription);
       formData.append('category_id', selectedCategoryId);
-      formData.append('status', isActive); // Append the status (1 or 0)
-      formData.append('features', features); // Append the CKEditor content (features)
-
+      formData.append('status', isActive);
+      formData.append('features', features);
       if (productImage) formData.append('product_image', productImage);
-
-      // Append each subcategory to the FormData
       selectedSubcategoryIds.forEach(subcategoryId => {
         formData.append('subcategories[]', subcategoryId);
       });
 
-      // Collect and append title, heading, and description data
       document.querySelectorAll('.title-block').forEach((titleBlock, index) => {
         const title = titleBlock.querySelector(`input[name="titles[${index + 1}][title]"]`)?.value || "";
         const heading = titleBlock.querySelector(`input[name="titles[${index + 1}][heading]"]`)?.value || "";
         const description = titleBlock.querySelector(`input[name="titles[${index + 1}][description]"]`)?.value || "";
-
-        // Append each title field to the form data
         formData.append(`titles[${index}][title]`, title);
         formData.append(`titles[${index}][heading]`, heading);
         formData.append(`titles[${index}][description]`, description);
       });
 
-      // Collect and append PDF data
       document.querySelectorAll('.pdf-block').forEach((pdfBlock, index) => {
         const pdfHeading = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][heading]"]`)?.value || "";
         const pdfFile = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][file]"]`)?.files[0];
-
-        // Append PDF heading and file to form data
         if (pdfFile) {
           formData.append(`pdf_headings[${index}]`, pdfHeading);
           formData.append(`pdf_files[${index}]`, pdfFile);
@@ -202,6 +232,8 @@
         });
 
         if (response.ok) {
+          const newProduct = await response.json();
+          appendNewProductToTable(newProduct); // Add the new product to the table dynamically
           alert("Product added successfully!");
         } else {
           alert("Failed to add product. Please try again.");
@@ -210,6 +242,8 @@
         console.error("Error adding product:", error);
       }
     }
+
+
 
     // Function to fetch and display products in the table
     async function fetchProducts() {
@@ -235,40 +269,135 @@
             ? product.subcategories[0].category.name
             : 'No Category';
 
-          const pdfLink = product.pdfs.length > 0
-            ? `<a href="${product.pdfs[0].pdf_url}" target="_blank">View PDF</a>`
-            : 'No PDF';
+          // Handle multiple PDFs
+          let pdfLinks = '';
+          if (product.pdfs.length > 0) {
+            product.pdfs.forEach((pdf, pdfIndex) => {
+              pdfLinks += `<a href="${pdf.pdf_url}" target="_blank">View PDF ${pdfIndex + 1}</a><br>`;
+            });
+          } else {
+            pdfLinks = 'No PDF';
+          }
 
           const imageUrl = product.image_url
             ? `<a href="${product.image_url}" target="_blank">View Image</a>`
             : 'No Image';
 
           productTableBody.innerHTML += `
-            <tr>
-              <td align="left" valign="top">${index + 1}</td>
-              <td align="left" valign="top">${categoryName}</td>
-              <td align="left" valign="top">${subcategories}</td>
-              <td align="left" valign="top">${productName}</td>
-              <td align="left" valign="top">${shortDescription}</td>
-              <td align="left" valign="top">${fullDescription}</td>
-              <td align="left" valign="top">${imageUrl}</td>
-              <td align="left" valign="top"><strong>${status}</strong></td>
-              <td align="left" valign="top">${pdfLink}</td>
-              <td align="left" valign="top"><a href="#">Edit</a></td>
-              <td align="center" valign="top"><a href="#"><img src="images/icon-bin.jpg" alt="Delete" width="25" height="25"></a></td>
-            </tr>
-          `;
+        <tr>
+          <td align="left" valign="top">${index + 1}</td>
+          <td align="left" valign="top">${categoryName}</td>
+          <td align="left" valign="top">${subcategories}</td>
+          <td align="left" valign="top">${productName}</td>
+          <td align="left" valign="top">${shortDescription}</td>
+          <td align="left" valign="top">${fullDescription}</td>
+          <td align="left" valign="top">${imageUrl}</td>
+          <td align="left" valign="top"><strong>${status}</strong></td>
+          <td align="left" valign="top">${pdfLinks}</td>
+          <td align="left" valign="top">
+            <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
+          </td>
+          <td align="center" valign="top">
+            <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
+              <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
+            </a>
+          </td>
+        </tr>
+      `;
         });
       } catch (error) {
         console.error("Error fetching products:", error);
       }
     }
+    // Function to handle deleting a product by ID
+    async function deleteProduct(productId) {
+      const confirmDelete = confirm("Are you sure you want to delete this product?");
+      if (!confirmDelete) return;
 
-    // Initialize the category selection and product list when the page loads
-    window.onload = function () {
-      fetchCategories();
-      fetchProducts(); // Fetch products on page load
-    };
+      try {
+        const response = await fetch(`http://localhost:8096/api/product/${productId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          alert("Product deleted successfully!");
+          fetchProducts(); // Refresh the product list after deletion
+        } else {
+          alert("Failed to delete product. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error deleting product:", error);
+      }
+    }
+
+    //   // Function to fetch a product's details and populate the form for editing
+    // async function editProduct(productId) {
+    //   try {
+    //     // Fetch the product data from the API
+    //     const response = await fetch(`http://localhost:8096/api/product/${productId}`);
+    //     const product = await response.json();
+
+    //     // Populate the form fields with the product data
+    //     document.getElementById('productName').value = product.name;
+    //     document.getElementById('shortDescription').value = product.short_description;
+
+    //     // Set category and subcategories
+    //     document.getElementById('categorySelect').value = product.subcategories[0].category.id;
+
+    //     // Clear and populate subcategories
+    //     const subcategorySelect = document.getElementById('subcategorySelect');
+    //     subcategorySelect.innerHTML = ''; // Clear previous subcategories
+
+    //     product.subcategories.forEach(subcategory => {
+    //       let option = document.createElement('option');
+    //       option.value = subcategory.id;
+    //       option.text = subcategory.name;
+    //       option.selected = true; // Automatically select the relevant subcategories
+    //       subcategorySelect.appendChild(option);
+    //     });
+
+    //     // Set status (checkbox)
+    //     document.getElementById('activeStatus').checked = product.status === "1";
+
+    //     // Populate titles (clear existing, then add from product)
+    //     document.getElementById('descriptionContainer').innerHTML = ''; // Clear previous titles
+    //     product.titles.forEach((title, index) => {
+    //       // Add the description fields dynamically for each title
+    //       addMoreDescription(); // Ensure that fields are generated dynamically
+
+    //       const titleField = document.querySelector(`input[name="titles[${index + 1}][title]"]`);
+    //       const headingField = document.querySelector(`input[name="titles[${index + 1}][heading]"]`);
+    //       const descriptionField = document.querySelector(`input[name="titles[${index + 1}][description]"]`);
+
+    //       if (titleField) titleField.value = title.title;
+    //       if (headingField) headingField.value = title.heading;
+    //       if (descriptionField) descriptionField.value = title.description;
+    //     });
+
+    //     // Set the CKEditor content (features)
+    //     CKEDITOR.instances.editorFeatures.setData(product.features);
+
+    //     // If the product has PDFs, add them to the PDF container
+    //     document.getElementById('pdfContainer').innerHTML = ''; // Clear previous PDFs
+    //     product.pdfs.forEach((pdf, index) => {
+    //       addMorePDF(); // Add more PDF fields dynamically
+    //       const pdfHeadingField = document.querySelector(`input[name="pdfs[${index + 1}][heading]"]`);
+    //       if (pdfHeadingField) pdfHeadingField.value = pdf.heading;
+    //       const pdfFileInput = document.querySelector(`input[name="pdfs[${index + 1}][file]"]`);
+    //       if (pdfFileInput) pdfFileInput.dataset.pdfUrl = pdf.pdf_url; // Store the existing PDF URL
+    //     });
+
+    //     // Set the product ID in a hidden field (for update purposes)
+    //     document.getElementById('productId').value = productId;
+
+    //   } catch (error) {
+    //     console.error("Error fetching product data:", error);
+    //   }
+    // }
+
+    function redirectToUpdatePage(productId) {
+      window.location.href = `update-product.html?productId=${productId}`;
+    }
 
     // Initialize CKEditor for the features field
     window.onload = function () {
@@ -342,135 +471,142 @@
     <div class="form-txtfld">
       <input type="file" id="productImage">
       <div class="form-name"> Image Size ( Width=560px, Height=390px ) (Product page)</div>
-    </div>
-
-    <div class="form-raw" style="width:100%;">
-      <div class="form-name">Short Description</div>
-      <div class="form-txtfld">
-        <textarea type="text" id="shortDescription"></textarea>
-      </div>
-    </div>
-
-    <!-- Description Section -->
-    <div id="descriptionContainer">
-      <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Description</h1>
-      <br>
-      <div class="title-block" id="title-1">
-        <div class="form-raw">
-          <div class="form-name">Title 1</div>
-          <div class="form-txtfld">
-            <input type="text" name="titles[1][title]" placeholder="Title 1">
-          </div>
-        </div>
-        <div class="form-raw">
-          <div class="form-name">&nbsp;</div>
-          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][heading]" placeholder="Heading"></div>
-          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][description]" placeholder="Description">
-          </div>
-          <a href="javascript:void(0);" onclick="deleteDescription('title-1')">
-            <img src="images/delete.gif" alt="Delete">
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Button to Add More Titles -->
-    <div class="form-raw">
-      <div class="form-name">&nbsp;</div>
-      <div class="form-txtfld" style="width: 320px; text-align: right;">
-        <a href="javascript:void(0)" onclick="addMoreDescription()">Add More +</a>
-      </div>
-    </div>
-
-    <div class="clear"></div>
-  </div>
-
-  <!-- CKEditor Content Field (Features) -->
-  <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Features</h1>
-  <br>
-  <div class="form-raw" style="width:100%;">
-    <div class="form-name">Content</div>
-    <div class="form-txtfld" style="width:780px;">
-      <textarea id="editorFeatures" name="features"></textarea> <!-- CKEditor field for features -->
-    </div>
-  </div>
-
-
-  <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Upload PDFs</h1>
-  <div id="pdfContainer">
-    <div class="pdf-block" id="pdf-1">
-      <div class="form-raw">
-        <div class="form-name">PDF Heading 1</div>
+      <!-- Short Description Section -->
+      <div class="form-raw" style="width:100%;">
+        <div class="form-name">Short Description</div>
         <div class="form-txtfld">
-          <input type="text" name="pdfs[1][heading]" placeholder="PDF Heading 1">
+          <textarea type="text" id="shortDescription"></textarea>
         </div>
       </div>
+
+
+
+      <!-- Description Section -->
+      <div class="form-raw" style="width:100%;">
+        <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Description</h1>
+        <div id="descriptionContainer">
+          <div class="title-block" id="title-1">
+            <div class="form-raw">
+              <div class="form-name">Title 1</div>
+              <div class="form-txtfld">
+                <input type="text" name="titles[1][title]" placeholder="Title 1">
+              </div>
+            </div>
+            <div class="form-raw">
+              <div class="form-name">&nbsp;</div>
+              <div class="form-txtfld txtfld50">
+                <input type="text" name="titles[1][heading]" placeholder="Heading">
+              </div>
+              <div class="form-txtfld txtfld50">
+                <input type="text" name="titles[1][description]" placeholder="Description">
+              </div>
+              <a href="javascript:void(0);" onclick="deleteDescription('title-1')">
+                <img src="images/delete.gif" alt="Delete">
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Button to Add More Titles -->
       <div class="form-raw">
         <div class="form-name">&nbsp;</div>
-        <div class="form-txtfld txtfld50"><input type="file" name="pdfs[1][file]" accept=".pdf"></div>
+        <div class="form-txtfld" style="width: 320px; text-align: right;">
+          <a href="javascript:void(0)" onclick="addMoreDescription()">Add More +</a>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Button to Add More PDFs -->
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld" style="width: 320px; text-align: right;">
-      <a href="javascript:void(0)" onclick="addMorePDF()">Add More PDFs +</a>
-    </div>
-  </div>
-
-  <div class="form-raw">
-    <div class="form-name">Active</div>
-    <div class="form-txtfld">
-      <input type="checkbox" id="activeStatus">
-    </div>
-  </div>
-
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld">
-      <input type="button" class="btn" value="Submit" onclick="addProduct()">
-    </div>
-  </div>
-  </div>
-
-  <div id="wrap2">
-    <h2>Product List</h2>
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
-      <thead>
-        <tr>
-          <th width="53" align="left" valign="middle">Sr.No.</th>
-          <th width="153" align="left" valign="middle">Category</th>
-          <th width="153" align="left" valign="middle">Subcategories</th>
-          <th width="71" align="left" valign="middle">Product Name</th>
-          <th width="408" align="left" valign="middle">Short Description</th>
-          <th align="left" valign="middle">Full Description</th>
-          <th width="100" align="left" valign="middle">Image</th>
-          <th width="49" align="left" valign="middle">Status</th>
-          <th width="49" align="left" valign="middle">PDF</th>
-          <th width="49" align="left" valign="middle">Edit</th>
-          <th width="61" align="left" valign="middle">Remove</th>
-        </tr>
-      </thead>
-      <tbody id="productTableBody">
-        <!-- Product rows will be populated here dynamically -->
-      </tbody>
-    </table>
-  </div>
-
-  <div class="clear"></div>
-  <footer>
-    <footer class="whitefoter">
-      <div class="whitefooter-cont">
-        <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
-        <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
-          <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd.">
-        </a>
-        <div class="clear"></div>
+      <!-- Features Section (CKEditor Content Field) -->
+      <div class="form-raw" style="width:100%;">
+        <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Features</h1>
+        <div class="form-name">Content</div>
+        <div class="form-txtfld" style="width:780px;">
+          <textarea id="editorFeatures" name="features"></textarea> <!-- CKEditor field for features -->
+        </div>
       </div>
-    </footer>
-  </footer>
+      <!-- Upload PDFs Section -->
+      <div class="form-raw" style="width:100%;">
+        <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Upload PDFs</h1>
+        <div id="pdfContainer">
+          <div class="pdf-block" id="pdf-1">
+            <div class="form-raw">
+              <div class="form-name">PDF Heading 1</div>
+              <div class="form-txtfld">
+                <input type="text" name="pdfs[1][heading]" placeholder="PDF Heading 1">
+              </div>
+            </div>
+            <div class="form-raw">
+              <div class="form-name">&nbsp;</div>
+              <div class="form-txtfld txtfld50">
+                <input type="file" name="pdfs[1][file]" accept=".pdf">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Button to Add More PDFs -->
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld" style="width: 320px; text-align: right;">
+          <a href="javascript:void(0)" onclick="addMorePDF()">Add More PDFs +</a>
+        </div>
+      </div>
+
+      <!-- Active Checkbox Section -->
+      <div class="form-raw">
+        <div class="form-name">Active</div>
+        <div class="form-txtfld">
+          <input type="checkbox" id="activeStatus">
+        </div>
+      </div>
+
+      <!-- Submit Button Section -->
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld">
+          <input type="button" class="btn" value="Submit" onclick="addProduct()">
+        </div>
+      </div>
+      <div class="clear"></div>
+
+      <div id="wrap2">
+        <h2>Product List</h2>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
+          <thead>
+            <tr>
+              <th width="53" align="left" valign="middle">Sr.No.</th>
+              <th width="153" align="left" valign="middle">Category</th>
+              <th width="153" align="left" valign="middle">Subcategories</th>
+              <th width="71" align="left" valign="middle">Product Name</th>
+              <th width="408" align="left" valign="middle">Short Description</th>
+              <th align="left" valign="middle">Full Description</th>
+              <th width="100" align="left" valign="middle">Image</th>
+              <th width="49" align="left" valign="middle">Status</th>
+              <th width="49" align="left" valign="middle">PDF</th>
+              <th width="49" align="left" valign="middle">Edit</th>
+              <th width="61" align="left" valign="middle">Remove</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody">
+
+            <!-- Product rows will be populated here dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="clear"></div>
+      <footer>
+        <footer class="whitefoter">
+          <div class="whitefooter-cont">
+            <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
+            <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
+              <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd."
+                title="AKS Websoft Consulting Pvt. Ltd.">
+            </a>
+            <div class="clear"></div>
+          </div>
+        </footer>
+      </footer>
 </body>
 
 </html>
