@@ -16,10 +16,9 @@
         const response = await fetch('http://localhost:8096/api/active-categories');
         const categories = await response.json();
         const categorySelect = document.getElementById('categorySelect');
-  
+
         categorySelect.innerHTML = `<option>Select Option</option>`;
         categories.forEach(category => {
-          // Checking for "status" field (1 means active)
           if (category.status === 1) {
             categorySelect.innerHTML += `<option value="${category.id}">${category.name}</option>`;
           }
@@ -28,17 +27,16 @@
         console.error("Error fetching categories:", error);
       }
     }
-  
+
     // Function to fetch active subcategories based on selected category
     async function fetchSubcategories(categoryId) {
       try {
         const response = await fetch(`http://localhost:8096/api/cat-subcategories?category_id=${categoryId}`);
         const subcategories = await response.json();
         const subcategorySelect = document.getElementById('subcategorySelect');
-  
+
         subcategorySelect.innerHTML = ''; // Clear previous options
         subcategories.forEach(subcategory => {
-          // Checking for "status" field (1 means active)
           if (subcategory.status === 1) {
             subcategorySelect.innerHTML += `<option value="${subcategory.id}">${subcategory.name}</option>`;
           }
@@ -47,12 +45,183 @@
         console.error("Error fetching subcategories:", error);
       }
     }
-  
-    // Initialize the category selection when the page loads
-    window.onload = fetchCategories;
+
+    let titleCount = 1; // To keep track of the number of titles
+
+    // Function to add more description fields dynamically
+    function addMoreDescription() {
+      titleCount++; // Increment title count
+      const descriptionContainer = document.getElementById('descriptionContainer');
+
+      const newFieldId = `title-${titleCount}`; // Unique ID for each title section
+
+      const newField = `
+        <div class="title-block" id="${newFieldId}">
+          <div class="form-raw">
+            <div class="form-name">Title ${titleCount}</div>
+            <div class="form-txtfld">
+              <input type="text" name="titles[${titleCount}][title]" placeholder="Title ${titleCount}">
+            </div>
+          </div>
+          <div class="form-raw">
+            <div class="form-name">&nbsp;</div>
+            <div class="form-txtfld txtfld50">
+              <input type="text" name="titles[${titleCount}][heading]" placeholder="Heading">
+            </div>
+            <div class="form-txtfld txtfld50">
+              <input type="text" name="titles[${titleCount}][description]" placeholder="Description">
+            </div>
+            <a href="javascript:void(0);" onclick="deleteDescription('${newFieldId}')">
+              <img src="images/delete.gif" alt="Delete">
+            </a>
+          </div>
+        </div>
+      `;
+
+      // Append the new title section to the container
+      descriptionContainer.insertAdjacentHTML('beforeend', newField);
+    }
+
+    // Function to delete a title section
+    function deleteDescription(fieldId) {
+      const fieldToRemove = document.getElementById(fieldId);
+      if (fieldToRemove) {
+        fieldToRemove.remove();
+      }
+    }
+
+    // Function to handle form submission and add product
+    async function addProduct() {
+      const productName = document.getElementById('productName').value;
+      const shortDescription = document.getElementById('shortDescription').value;
+      const selectedCategoryId = document.getElementById('categorySelect').value;
+      const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect').selectedOptions)
+        .map(option => option.value);
+
+      // Validate if category, subcategory, and product name are selected
+      if (!productName || !selectedCategoryId || selectedSubcategoryIds.length === 0) {
+        alert("Please fill all the required fields.");
+        return;
+      }
+
+      // Retrieve product image and PDF files
+      const productImageInput = document.getElementById('productImage');
+      const productImage = productImageInput ? productImageInput.files[0] : null;
+
+      const pdfFilesInput = document.getElementById('pdfFiles');
+      const pdfFiles = pdfFilesInput ? pdfFilesInput.files : null;
+
+      // Create FormData to send the subcategories, image, and title data
+      const formData = new FormData();
+      formData.append('product_name', productName);
+      formData.append('short_description', shortDescription);
+      formData.append('category_id', selectedCategoryId);
+      if (productImage) formData.append('product_image', productImage);
+
+      // Append each subcategory to the FormData
+      selectedSubcategoryIds.forEach(subcategoryId => {
+        formData.append('subcategories[]', subcategoryId);
+      });
+
+      // Append PDF files (if selected)
+      if (pdfFiles) {
+        Array.from(pdfFiles).forEach(pdf => {
+          formData.append('pdf_files[]', pdf);
+        });
+      }
+
+      // Collect and append title, heading, and description data
+      document.querySelectorAll('.title-block').forEach((titleBlock, index) => {
+        const title = titleBlock.querySelector(`input[name="titles[${index + 1}][title]"]`)?.value || "";
+        const heading = titleBlock.querySelector(`input[name="titles[${index + 1}][heading]"]`)?.value || "";
+        const description = titleBlock.querySelector(`input[name="titles[${index + 1}][description]"]`)?.value || "";
+
+        // Append each title field to the form data
+        formData.append(`titles[${index}][title]`, title);
+        formData.append(`titles[${index}][heading]`, heading);
+        formData.append(`titles[${index}][description]`, description);
+      });
+
+      try {
+        const response = await fetch('http://localhost:8096/api/product', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          alert("Product added successfully!");
+        } else {
+          alert("Failed to add product. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error adding product:", error);
+      }
+    }
+
+    // Function to fetch and display products in the table
+    async function fetchProducts() {
+      try {
+        const response = await fetch('http://localhost:8096/api/product'); // Adjust the API URL as needed
+        const products = await response.json();
+        const productTableBody = document.getElementById('productTableBody');
+
+        productTableBody.innerHTML = ''; // Clear previous product rows
+        products.forEach((product, index) => {
+          const status = product.status === "1" ? 'Active' : 'Inactive';
+
+          // Handle null values for product fields
+          const productName = product.name ? product.name : 'N/A';
+          const shortDescription = product.short_description ? product.short_description : 'N/A';
+          const fullDescription = product.features ? product.features : 'N/A';
+
+          // Get subcategories as a comma-separated string
+          const subcategories = product.subcategories.length > 0
+            ? product.subcategories.map(subcat => subcat.name).join(', ')
+            : 'No Subcategories';
+
+          // Get the first category name from subcategories (if available)
+          const categoryName = product.subcategories.length > 0
+            ? product.subcategories[0].category.name
+            : 'No Category';
+
+          // Get the first PDF URL, if available
+          const pdfLink = product.pdfs.length > 0
+            ? `<a href="${product.pdfs[0].pdf_url}" target="_blank">View PDF</a>`
+            : 'No PDF';
+
+          const imageUrl = product.image_url
+            ? `<a href="${product.image_url}" target="_blank">View Image</a>`
+            : 'No Image';
+
+          productTableBody.innerHTML += `
+            <tr>
+              <td align="left" valign="top">${index + 1}</td>
+              <td align="left" valign="top">${categoryName}</td>
+              <td align="left" valign="top">${subcategories}</td>
+              <td align="left" valign="top">${productName}</td>
+              <td align="left" valign="top">${shortDescription}</td>
+              <td align="left" valign="top">${fullDescription}</td>
+              <td align="left" valign="top">${imageUrl}</td>
+              <td align="left" valign="top"><strong>${status}</strong></td>
+              <td align="left" valign="top">${pdfLink}</td>
+              <td align="left" valign="top"><a href="#">Edit</a></td>
+              <td align="center" valign="top">
+                <a href="#"><img src="images/icon-bin.jpg" alt="Delete" width="25" height="25" /></a>
+              </td>
+            </tr>
+          `;
+        });
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    }
+
+    // Initialize the category selection and product list when the page loads
+    window.onload = function () {
+      fetchCategories();
+      fetchProducts(); // Fetch products on page load
+    };
   </script>
-  
-  <!-- Menu End --------------->
 </head>
 
 <body>
@@ -107,79 +276,56 @@
     <div class="form-raw">
       <div class="form-name">Product Name</div>
       <div class="form-txtfld">
-        <input type="text">
+        <input type="text" id="productName">
       </div>
     </div>
 
     <div class="form-name">Product Image1</div>
     <div class="form-txtfld">
-      <input type="file">
+      <input type="file" id="productImage">
       <div class="form-name"> Image Size ( Width=560px, Height=390px ) (Product page)</div>
     </div>
-  </div>
 
-  <div class="form-raw" style="width:100%;">
-    <div class="form-name">Short Description</div>
-    <div class="form-txtfld">
-      <textarea></textarea>
+    <div class="form-raw" style="width:100%;">
+      <div class="form-name">Short Description</div>
+      <div class="form-txtfld">
+        <textarea type="text" id="shortDescription"></textarea>
+      </div>
     </div>
-  </div>
 
-  <div class="clear"></div>
-  <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Description</h1>
-  <br>
-  <div class="form-raw">
-    <div class="form-name">Title 1</div>
-    <div class="form-txtfld">
-      <input type="text">
+    <!-- Description Section -->
+    <div id="descriptionContainer">
+      <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Description</h1>
+      <br>
+      <div class="title-block" id="title-1">
+        <div class="form-raw">
+          <div class="form-name">Title 1</div>
+          <div class="form-txtfld">
+            <input type="text" name="titles[1][title]" placeholder="Title 1">
+          </div>
+        </div>
+        <div class="form-raw">
+          <div class="form-name">&nbsp;</div>
+          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][heading]" placeholder="Heading"></div>
+          <div class="form-txtfld txtfld50"><input type="text" name="titles[1][description]" placeholder="Description"></div>
+          <a href="javascript:void(0);" onclick="deleteDescription('title-1')">
+            <img src="images/delete.gif" alt="Delete">
+          </a>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="heading"></div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="desciption"></div>
-    <a href="#"><img src="images/delete.gif" alt=""></a>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld" style="width: 320px; text-align: right;"><a href="#">Add More +</a></div>
-  </div>
 
-  <div class="form-raw">
-    <div class="form-name">Title 2</div>
-    <div class="form-txtfld">
-      <input type="text">
+    <!-- Button to Add More Titles -->
+    <div class="form-raw">
+      <div class="form-name">&nbsp;</div>
+      <div class="form-txtfld" style="width: 320px; text-align: right;">
+        <a href="javascript:void(0)" onclick="addMoreDescription()">Add More +</a>
+      </div>
     </div>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="heading"></div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="desciption"></div> <a href="#"><img
-        src="images/delete.gif" alt=""></a>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld" style="width: 320px; text-align: right;"><a href="#">Add More +</a></div>
-  </div>
 
-  <div class="form-raw">
-    <div class="form-name">Title 3</div>
-    <div class="form-txtfld">
-      <input type="text">
-    </div>
+    <div class="clear"></div>
   </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="heading"></div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="desciption"></div>
-    <a href="#"><img src="images/delete.gif" alt=""></a>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld" style="width: 320px; text-align: right;"><a href="#">Add More +</a></div>
-  </div>
-
-  <div class="clear"></div>
+  
   <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Features</h1>
   <br>
   <div class="form-raw" style="width:100%;">
@@ -188,6 +334,7 @@
       <textarea style="width:100%; height:500px;">CK</textarea>
     </div>
   </div>
+
   <div class="clear"></div>
   <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 0px 0;">Upload PDF</h1>
   <br>
@@ -195,18 +342,7 @@
   <div class="form-raw">
     <div class="form-name">&nbsp;</div>
     <div class="form-txtfld txtfld50"><input type="text" placeholder="PDF heading"></div>
-    <div class="form-txtfld txtfld50"><input type="file" placeholder="description"></div>
-  </div>
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld" style="width: 320px; text-align: right;"><a href="#">Add More +</a></div>
-  </div>
-
-  <div class="form-raw">
-    <div class="form-name">&nbsp;</div>
-    <div class="form-txtfld txtfld50"><input type="text" placeholder="PDF heading"></div>
-    <div class="form-txtfld txtfld50"><input type="file" placeholder="description"></div>
-    <a href="#"><img src="images/delete.gif" alt=""></a>
+    <div class="form-txtfld txtfld50"><input type="file" id="pdfFiles" multiple></div>
   </div>
 
   <div class="clear"></div>
@@ -217,42 +353,37 @@
     </div>
     <div class="clear"></div>
   </div>
+
   <div class="clear"></div>
   <div class="form-raw">
     <div class="form-name">&nbsp;</div>
     <div class="form-txtfld">
-      <input type="button" class="btn" value="Submit">
+      <input type="button" class="btn" value="Submit" onclick="addProduct()">
     </div>
-  </div>
   </div>
 
   <div id="wrap2">
+    <h2>Product List</h2>
     <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
-      <tr>
-        <th width="53" align="left" valign="middle">Sr.No.</th>
-        <th width="153" align="left" valign="middle">Select Category</th>
-        <th width="71" align="left" valign="middle"> Select Sub Category</th>
-        <th width="71" align="left" valign="middle"> Product Name</th>
-        <th width="408" align="left" valign="middle">Short Description</th>
-        <th width=" " align="left" valign="middle">Full Description</th>
-        <th width="49" align="left" valign="middle">Status</th>
-        <th width="49" align="left" valign="middle">Edit</th>
-        <th width="61" align="left" valign="middle">Remove</th>
-      </tr>
-      <tr>
-        <td align="left" valign="top">1</td>
-        <td align="left" valign="top">Lorem.</td>
-        <td align="left" valign="top">Lorem.</td>
-        <td align="left" valign="top">dfdd</td>
-        <td align="left" valign="top">fdfd</td>
-        <td align="left" valign="top">fdfd</td>
-        <td align="left" valign="top"><strong>Active</strong></td>
-        <td align="left" valign="top"><a href="#">Edit</a></td>
-        <td align="center" valign="top"><a href="#"><img src="images/icon-bin.jpg" alt="" width="25" height="25"
-              border="0" align="absmiddle" /></a></td>
-      </tr>
+      <thead>
+        <tr>
+          <th width="53" align="left" valign="middle">Sr.No.</th>
+          <th width="153" align="left" valign="middle">Category</th>
+          <th width="153" align="left" valign="middle">Subcategories</th>
+          <th width="71" align="left" valign="middle">Product Name</th>
+          <th width="408" align="left" valign="middle">Short Description</th>
+          <th align="left" valign="middle">Full Description</th>
+          <th width="100" align="left" valign="middle">Image</th>
+          <th width="49" align="left" valign="middle">Status</th>
+          <th width="49" align="left" valign="middle">PDF</th>
+          <th width="49" align="left" valign="middle">Edit</th>
+          <th width="61" align="left" valign="middle">Remove</th>
+        </tr>
+      </thead>
+      <tbody id="productTableBody">
+        <!-- Product rows will be populated here dynamically -->
+      </tbody>
     </table>
-    <div class="clear">&nbsp;</div>
   </div>
 
   <div class="clear"></div>
@@ -260,8 +391,9 @@
     <footer class="whitefoter">
       <div class="whitefooter-cont">
         <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
-        <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;"> <img src="images/akslogo.png"
-            alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd."></a>
+        <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
+          <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd.">
+        </a>
         <div class="clear"></div>
       </div>
     </footer>
