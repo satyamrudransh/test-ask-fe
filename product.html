@@ -8,11 +8,7 @@
   <!-- Menu start --------------->
   <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
   <script type="text/javascript" src="menu/quickmenu0.js"></script>
-  <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js">
-
-
-  </script>
-
+  <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
   <script>
     // Function to fetch active categories
     async function fetchCategories() {
@@ -130,54 +126,6 @@
         pdfToRemove.remove();
       }
     }
-    // Function to append the newly added product to the table dynamically
-    function appendNewProductToTable(product) {
-      const productTableBody = document.getElementById('productTableBody');
-      const status = product.status === "1" ? 'Active' : 'Inactive';
-      const subcategories = product.subcategories ? product.subcategories.map(subcat => subcat.name).join(', ') : 'No Subcategories';
-
-      // Initialize the pdfs array if it's undefined or null
-      const pdfs = product.pdfs || [];
-
-      // Handle multiple PDFs
-      let pdfLinks = '';
-      if (pdfs.length > 0) {
-        pdfs.forEach((pdf, index) => {
-          pdfLinks += `<a href="${pdf.pdf_url}" target="_blank">View PDF ${index + 1}</a><br>`;
-        });
-      } else {
-        pdfLinks = 'No PDF';
-      }
-
-      const imageUrl = product.image_url ? `<a href="${product.image_url}" target="_blank">View Image</a>` : 'No Image';
-
-      // Create a new row for the product
-      const rowHTML = `
-        <tr>
-            <td align="left" valign="top">${product.id}</td>
-            <td align="left" valign="top">${product.subcategories[0]?.category?.name || 'No Category'}</td>
-            <td align="left" valign="top">${subcategories}</td>
-            <td align="left" valign="top">${product.name}</td>
-            <td align="left" valign="top">${product.short_description}</td>
-            <td align="left" valign="top">${product.features}</td>
-            <td align="left" valign="top">${imageUrl}</td>
-            <td align="left" valign="top"><strong>${status}</strong></td>
-            <td align="left" valign="top">${pdfLinks}</td>
-            <td align="left" valign="top">
-                <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
-            </td>
-            <td align="center" valign="top">
-                <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
-                    <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
-                </a>
-            </td>
-        </tr>
-    `;
-
-      // Append the new row to the table body
-      productTableBody.insertAdjacentHTML('beforeend', rowHTML);
-    }
-
 
     // Function to reset form fields
     function resetFormFields() {
@@ -287,14 +235,10 @@
         });
 
         if (response.ok) {
-          resetFormFields(); // Clear the form fields after successful submission
-          location.reload(); // Refresh the page after successful submission
           const newProduct = await response.json();
           appendNewProductToTable(newProduct); // Add the new product to the table dynamically
           alert("Product added successfully!");
           resetFormFields(); // Clear the form fields after successful submission
-          location.reload(); // Refresh the page after successful submission
-
         } else {
           alert("Failed to add product. Please try again.");
         }
@@ -303,6 +247,78 @@
       }
     }
 
+    // Function to append the newly added product to the table dynamically
+    function appendNewProductToTable(product) {
+      const productTableBody = document.getElementById('productTableBody');
+      const status = product.status === "1" ? 'Active' : 'Inactive';
+      const subcategories = product.subcategories ? product.subcategories.map(subcat => subcat.name).join(', ') : 'No Subcategories';
+
+      // Initialize the pdfs array if it's undefined or null
+      const pdfs = product.pdfs || [];
+
+      // Handle multiple PDFs
+      let pdfLinks = '';
+      if (pdfs.length > 0) {
+        pdfs.forEach((pdf, index) => {
+          pdfLinks += `<a href="${pdf.pdf_url}" target="_blank">View PDF ${index + 1}</a><br>`;
+        });
+      } else {
+        pdfLinks = 'No PDF';
+      }
+
+      const imageUrl = product.image_url ? `<a href="${product.image_url}" target="_blank">View Image</a>` : 'No Image';
+
+      // Create a new row for the product
+      const rowHTML = `
+        <tr>
+            <td align="left" valign="top">${product.id}</td>
+            <td align="left" valign="top">${product.subcategories[0]?.category?.name || 'No Category'}</td>
+            <td align="left" valign="top">${subcategories}</td>
+            <td align="left" valign="top">${product.name}</td>
+            <td align="left" valign="top">${product.short_description}</td>
+            <td align="left" valign="top">${product.features}</td>
+            <td align="left" valign="top">${imageUrl}</td>
+            <td align="left" valign="top"><strong>${status}</strong></td>
+            <td align="left" valign="top">${pdfLinks}</td>
+            <td align="left" valign="top">
+                <a href="javascript:void(0);" onclick="redirectToUpdatePage(${product.id})">Edit</a>
+            </td>
+            <td align="center" valign="top">
+                <a href="javascript:void(0);" onclick="deleteProduct(${product.id})">
+                    <img src="images/icon-bin.jpg" alt="Delete" width="25" height="25">
+                </a>
+            </td>
+        </tr>
+    `;
+
+      // Append the new row to the table body
+      productTableBody.insertAdjacentHTML('beforeend', rowHTML);
+    }
+
+    // Function to handle deleting a product by ID
+    async function deleteProduct(productId) {
+      const confirmDelete = confirm("Are you sure you want to delete this product?");
+      if (!confirmDelete) return;
+
+      try {
+        const response = await fetch(`http://localhost:8096/api/product/${productId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          alert("Product deleted successfully!");
+          fetchProducts(); // Refresh the product list after deletion
+        } else {
+          alert("Failed to delete product. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error deleting product:", error);
+      }
+    }
+
+    function redirectToUpdatePage(productId) {
+      window.location.href = `update-product.html?productId=${productId}`;
+    }
 
     // Function to fetch and display products in the table
     async function fetchProducts() {
@@ -368,95 +384,6 @@
         console.error("Error fetching products:", error);
       }
     }
-    // Function to handle deleting a product by ID
-    async function deleteProduct(productId) {
-      const confirmDelete = confirm("Are you sure you want to delete this product?");
-      if (!confirmDelete) return;
-
-      try {
-        const response = await fetch(`http://localhost:8096/api/product/${productId}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          alert("Product deleted successfully!");
-          fetchProducts(); // Refresh the product list after deletion
-        } else {
-          alert("Failed to delete product. Please try again.");
-        }
-      } catch (error) {
-        console.error("Error deleting product:", error);
-      }
-    }
-
-    //   // Function to fetch a product's details and populate the form for editing
-    // async function editProduct(productId) {
-    //   try {
-    //     // Fetch the product data from the API
-    //     const response = await fetch(`http://localhost:8096/api/product/${productId}`);
-    //     const product = await response.json();
-
-    //     // Populate the form fields with the product data
-    //     document.getElementById('productName').value = product.name;
-    //     document.getElementById('shortDescription').value = product.short_description;
-
-    //     // Set category and subcategories
-    //     document.getElementById('categorySelect').value = product.subcategories[0].category.id;
-
-    //     // Clear and populate subcategories
-    //     const subcategorySelect = document.getElementById('subcategorySelect');
-    //     subcategorySelect.innerHTML = ''; // Clear previous subcategories
-
-    //     product.subcategories.forEach(subcategory => {
-    //       let option = document.createElement('option');
-    //       option.value = subcategory.id;
-    //       option.text = subcategory.name;
-    //       option.selected = true; // Automatically select the relevant subcategories
-    //       subcategorySelect.appendChild(option);
-    //     });
-
-    //     // Set status (checkbox)
-    //     document.getElementById('activeStatus').checked = product.status === "1";
-
-    //     // Populate titles (clear existing, then add from product)
-    //     document.getElementById('descriptionContainer').innerHTML = ''; // Clear previous titles
-    //     product.titles.forEach((title, index) => {
-    //       // Add the description fields dynamically for each title
-    //       addMoreDescription(); // Ensure that fields are generated dynamically
-
-    //       const titleField = document.querySelector(`input[name="titles[${index + 1}][title]"]`);
-    //       const headingField = document.querySelector(`input[name="titles[${index + 1}][heading]"]`);
-    //       const descriptionField = document.querySelector(`input[name="titles[${index + 1}][description]"]`);
-
-    //       if (titleField) titleField.value = title.title;
-    //       if (headingField) headingField.value = title.heading;
-    //       if (descriptionField) descriptionField.value = title.description;
-    //     });
-
-    //     // Set the CKEditor content (features)
-    //     CKEDITOR.instances.editorFeatures.setData(product.features);
-
-    //     // If the product has PDFs, add them to the PDF container
-    //     document.getElementById('pdfContainer').innerHTML = ''; // Clear previous PDFs
-    //     product.pdfs.forEach((pdf, index) => {
-    //       addMorePDF(); // Add more PDF fields dynamically
-    //       const pdfHeadingField = document.querySelector(`input[name="pdfs[${index + 1}][heading]"]`);
-    //       if (pdfHeadingField) pdfHeadingField.value = pdf.heading;
-    //       const pdfFileInput = document.querySelector(`input[name="pdfs[${index + 1}][file]"]`);
-    //       if (pdfFileInput) pdfFileInput.dataset.pdfUrl = pdf.pdf_url; // Store the existing PDF URL
-    //     });
-
-    //     // Set the product ID in a hidden field (for update purposes)
-    //     document.getElementById('productId').value = productId;
-
-    //   } catch (error) {
-    //     console.error("Error fetching product data:", error);
-    //   }
-    // }
-
-    function redirectToUpdatePage(productId) {
-      window.location.href = `update-product.html?productId=${productId}`;
-    }
 
     // Initialize CKEditor for the features field
     window.onload = function () {
@@ -466,7 +393,6 @@
       // Initialize CKEditor for features field
       CKEDITOR.replace('editorFeatures');
     };
-
   </script>
 </head>
 
@@ -537,8 +463,6 @@
           <textarea type="text" id="shortDescription"></textarea>
         </div>
       </div>
-
-
 
       <!-- Description Section -->
       <div class="form-raw" style="width:100%;">
@@ -647,7 +571,6 @@
             </tr>
           </thead>
           <tbody id="productTableBody">
-
             <!-- Product rows will be populated here dynamically -->
           </tbody>
         </table>
