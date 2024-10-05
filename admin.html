@@ -60,12 +60,30 @@
 
         <script>
           $(document).ready(function () {
+            var isNavigatingInternally = false; // Track internal navigation
+
+            // Function to handle user logout
+            function logoutUser() {
+              // Clear the token from localStorage
+              localStorage.removeItem('token');
+              // Redirect to index.html
+              window.location.href = 'index.html';
+            }
+
+            // Check if the token exists in localStorage
+            var token = localStorage.getItem('token');
+            if (!token) {
+              // If no token is found, redirect to index.html
+              alert('Session expired. You will be redirected to the login page.');
+              window.location.href = 'index.html';
+            }
+
             // Fetch user details after page load
             $.ajax({
               url: 'http://localhost:8096/api/user', // Change this to your actual API URL
               type: 'GET',
               headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token') // Assuming you're storing the token in local storage
+                'Authorization': 'Bearer ' + token // Assuming you're storing the token in local storage
               },
               success: function (data) {
                 $('#user-details').html('Logged in as: ' + data.name); // Display the user's name
@@ -76,36 +94,28 @@
               }
             });
 
-            // Logout functionality
+            // Logout functionality when clicking the logout button
             $('#logoutBtn').click(function (event) {
               event.preventDefault(); // Prevent default action
-
-              $.ajax({
-                url: 'http://localhost:8096/api/logout', // Your Laravel API logout URL
-                type: 'POST',
-                headers: {
-                  'Authorization': 'Bearer ' + localStorage.getItem('token') // Include the token for authentication
-                },
-                success: function (response) {
-                  // Clear the token from localStorage
-                  localStorage.removeItem('token');
-                  // Redirect to the dashboard after a short delay
-                  setTimeout(function () {
-                    window.location.href = 'index.html';
-                  }, 2000); // 2 seconds delay
-                  // Redirect to index.html
-                  // window.location.href = 'index.html';
-                },
-                error: function (xhr) {
-                  console.error('Logout failed: ', xhr);
-                  alert('Logout failed. Please try again.'); // Optionally alert the user
-                }
-              });
+              logoutUser(); // Call the logout function
             });
 
-            
+            // Detect internal navigation
+            $('a').on('click', function () {
+              isNavigatingInternally = true; // Mark as internal navigation
+            });
+
+            // Logout user if the page is refreshed or navigating away (not internal navigation)
+            window.addEventListener('unload', function () {
+              if (!isNavigatingInternally) {
+                // Only logout if it's a refresh or external navigation
+                localStorage.removeItem('token');
+              }
+            });
+
           });
         </script>
+
       </aside>
       <div class="clear"></div>
     </section>

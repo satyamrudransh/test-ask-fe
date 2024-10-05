@@ -136,10 +136,11 @@ async function fetchSubCategories() {
         subcategoryList.innerHTML = ''; // Clear the list before populating
         
         subcategories.forEach((subcategory, index) => {
+            const categoryName = subcategory.category ? subcategory.category.name : 'No Category'; // Handle null category
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td align="left" valign="top">${index + 1}</td>
-                <td align="left" valign="top">${subcategory.category.name}</td>
+                <td align="left" valign="top">${categoryName}</td>
                 <td align="left" valign="top">${subcategory.name}</td>
                 <td align="left" valign="top"><strong>${subcategory.status ? 'Active' : 'Inactive'}</strong></td>
                 <td align="left" valign="top"><a href="#" onclick="editSubCategory(${subcategory.id})">Edit</a></td>
@@ -197,7 +198,7 @@ async function editSubCategory(subcategoryId) {
         const subcategory = await response.json();
 
         // Populate the form with existing data
-        document.getElementById('category_id').value = subcategory.category.id;
+        document.getElementById('category_id').value = subcategory.category ? subcategory.category.id : '';
         document.getElementById('subcategory_name').value = subcategory.name;
         document.getElementById('status').checked = subcategory.status;
 
@@ -224,7 +225,7 @@ async function updateSubCategory(subcategoryId) {
 
     const data = {
         category_id: categoryId,
-        name: subcategoryName,
+        subcategory_name: subcategoryName,
         status: status ? 1 : 0
     };
 
@@ -278,31 +279,6 @@ function clearForm() {
     const submitButton = document.querySelector('.btn');
     submitButton.value = 'Submit';
     submitButton.setAttribute('onclick', 'submitSubCategory()');
-}
-
-// Logout function
-async function logout() {
-    const confirmLogout = confirm('Are you sure you want to logout?');
-    if (!confirmLogout) return;
-
-    try {
-        const response = await fetch('http://localhost:8096/api/logout', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
-            }
-        });
-
-        if (response.ok) {
-            alert('Logged out successfully!');
-            localStorage.removeItem('token'); // Clear the token
-            window.location.href = 'index.html'; // Redirect to login page
-        } else {
-            alert('Error logging out.');
-        }
-    } catch (error) {
-        console.error('Error during logout:', error);
-    }
 }
 
 // Initialize the page

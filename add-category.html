@@ -6,18 +6,81 @@
     <link rel="stylesheet" href="css/style.css">
     <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
     <script type="text/javascript" src="menu/quickmenu0.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Add jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
         const apiUrl = 'http://localhost:8096/api/categories'; // Your API endpoint
 
-        // Fetch categories
+        // Logout functionality with alert and token removal
+        function logout() {
+            alert('You have been logged out due to page refresh or navigation.');
+            // Clear the token from localStorage
+            localStorage.removeItem('token');
+            // Redirect to the login page
+            window.location.href = 'index.html';
+        }
+
+        // Detect if the current page is add-category.html
+        function isAddCategoryPage() {
+            return window.location.pathname.includes("add-category.html");
+        }
+
+        // Add event listener to handle page refresh and navigation
+        $(document).ready(function () {
+            if (isAddCategoryPage()) {
+                // Handle page refresh (beforeunload event)
+                window.addEventListener('beforeunload', function (event) {
+                    // Trigger logout when the page is refreshed
+                    logout();
+                });
+
+                // Handle browser navigation (back button or navigate away)
+                window.addEventListener('pageshow', function (event) {
+                    // When the page is loaded from cache (like using back button), trigger logout
+                    if (event.persisted || window.performance.navigation.type === 2) {
+                        logout();
+                    }
+                });
+            }
+
+            // Detect internal navigation by checking links
+            $('a').on('click', function () {
+                window.removeEventListener('beforeunload', logout);
+            });
+
+            // Logout button click event
+            $('#logoutBtn').click(function (event) {
+                event.preventDefault(); // Prevent default action
+                logout(); // Call the logout function
+            });
+        });
+
+        // Function to fetch categories and log the response for debugging
         function fetchCategories() {
             fetch(apiUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log("API response:", data); // Log the API response to the console
                     const categoryList = document.getElementById('categoryList');
                     categoryList.innerHTML = ''; // Clear existing categories
+
+                    if (data.length === 0) {
+                        console.log("No categories found.");
+                    }
+
+                    // Loop through categories and add to the list
                     data.forEach((category, index) => {
+                        // Ensure category object has required fields (name, status, id)
+                        if (!category.name || category.status === undefined || !category.id) {
+                            console.error("Invalid category data:", category);
+                            return;
+                        }
+
                         const statusText = category.status ? 'Active' : 'Inactive';
                         const categoryRow = `
                             <tr>
@@ -30,41 +93,24 @@
                         `;
                         categoryList.insertAdjacentHTML('beforeend', categoryRow);
                     });
+                })
+                .catch(error => {
+                    console.error("Error fetching categories:", error);
+                    alert("Failed to load categories. Please check the API or network.");
                 });
         }
 
-        // Add category
-        function addCategory() {
-            const categoryName = document.getElementById('categoryName').value;
-            const isActive = document.getElementById('active').checked;
+        // Initialize: Fetch categories on page load
+        window.onload = fetchCategories;
 
-            const categoryData = {
-                name: categoryName,
-                status: isActive
-            };
-
-            fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(categoryData)
-            })
-            .then(response => response.json())
-            .then(() => {
-                fetchCategories(); // Refresh category list
-                clearForm(); // Clear the form
-            });
-        }
-
-        // Edit category
+        // Edit category function
         function editCategory(id, name, status) {
             document.getElementById('categoryName').value = name;
             document.getElementById('active').checked = status;
             document.getElementById('submitButton').onclick = () => updateCategory(id);
         }
 
-        // Update category
+        // Update category function
         function updateCategory(id) {
             const categoryName = document.getElementById('categoryName').value;
             const isActive = document.getElementById('active').checked;
@@ -88,7 +134,7 @@
             });
         }
 
-        // Delete category
+        // Delete category function
         function deleteCategory(id) {
             if (confirm("Are you sure you want to delete this category?")) {
                 fetch(`${apiUrl}/${id}`, {
@@ -100,47 +146,36 @@
             }
         }
 
-        // Clear form
+        // Clear form function
         function clearForm() {
             document.getElementById('categoryName').value = '';
             document.getElementById('active').checked = false;
             document.getElementById('submitButton').onclick = addCategory;
         }
 
-        // Initialize
-        window.onload = fetchCategories;
+        // Add category function
+        function addCategory() {
+            const categoryName = document.getElementById('categoryName').value;
+            const isActive = document.getElementById('active').checked;
 
-        // Logout functionality
-        function logout() {
-            if (confirm("Are you sure you want to logout?")) {
-                $.ajax({
-                    url: 'http://localhost:8096/api/logout', // Your Laravel API logout URL
-                    type: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + localStorage.getItem('token') // Include the token for authentication
-                    },
-                    success: function (response) {
-                        // Clear the token from localStorage
-                        localStorage.removeItem('token');
-                        // Redirect to the login page after a short delay
-                        setTimeout(function () {
-                            window.location.href = 'index.html';
-                        }, 2000); // 2 seconds delay
-                    },
-                    error: function (xhr) {
-                        console.error('Logout failed: ', xhr);
-                        alert('Logout failed. Please try again.'); // Optionally alert the user
-                    }
-                });
-            }
-        }
+            const categoryData = {
+                name: categoryName,
+                status: isActive
+            };
 
-        $(document).ready(function () {
-            $('#logoutBtn').click(function (event) {
-                event.preventDefault(); // Prevent default action
-                logout(); // Call the logout function
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(categoryData)
+            })
+            .then(response => response.json())
+            .then(() => {
+                fetchCategories(); // Refresh category list
+                clearForm(); // Clear the form
             });
-        });
+        }
     </script>
 </head>
 <body>
