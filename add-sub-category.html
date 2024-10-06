@@ -64,7 +64,7 @@
         <div class="form-raw">
             <div class="form-name">Active</div>
             <div class="form-txtfld">
-                <input type="checkbox" id="status" checked>
+                <input type="checkbox" id="status" >
             </div>
             <div class="clear"></div>
         </div>
@@ -275,7 +275,7 @@ async function deleteSubCategory(subcategoryId) {
 function clearForm() {
     document.getElementById('category_id').value = '';
     document.getElementById('subcategory_name').value = '';
-    document.getElementById('status').checked = true;
+    document.getElementById('status').checked = '';
     const submitButton = document.querySelector('.btn');
     submitButton.value = 'Submit';
     submitButton.setAttribute('onclick', 'submitSubCategory()');

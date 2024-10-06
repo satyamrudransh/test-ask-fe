@@ -20,7 +20,7 @@
       window.location.href = 'index.html';
     }
 
-    
+
 
     // Function to fetch active categories
     async function fetchCategories() {
@@ -96,28 +96,28 @@
 
     // Function to add more PDF fields dynamically
     function addMorePDF() {
-      pdfCount++;
+      pdfCount++; // Increment the PDF count
       const pdfContainer = document.getElementById('pdfContainer');
 
       const newPDFField = `
         <div class="pdf-block" id="pdf-${pdfCount}">
-          <div class="form-raw">
-            <div class="form-name">PDF Heading ${pdfCount}</div>
-            <div class="form-txtfld">
-              <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
+            <div class="form-raw">
+                <div class="form-name">PDF Heading ${pdfCount}</div>
+                <div class="form-txtfld">
+                    <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
+                </div>
             </div>
-          </div>
-          <div class="form-raw">
-            <div class="form-name">&nbsp;</div>
-            <div class="form-txtfld txtfld50">
-              <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
+            <div class="form-raw">
+                <div class="form-name">&nbsp;</div>
+                <div class="form-txtfld txtfld50">
+                    <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
+                </div>
+                <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
+                    <img src="images/delete.gif" alt="Delete">
+                </a>
             </div>
-            <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
-              <img src="images/delete.gif" alt="Delete">
-            </a>
-          </div>
         </div>
-      `;
+    `;
 
       pdfContainer.insertAdjacentHTML('beforeend', newPDFField);
     }
@@ -155,12 +155,10 @@
         document.getElementById('shortDescription').value = product.short_description;
 
         // Set category and subcategories
-        document.getElementById('categorySelect').value = product.subcategories[0].category.id;
+        document.getElementById('categorySelect').value = product.subcategories[0]?.category.id || '';
 
-        // Clear and populate subcategories
         const subcategorySelect = document.getElementById('subcategorySelect');
         subcategorySelect.innerHTML = ''; // Clear previous subcategories
-
         product.subcategories.forEach(subcategory => {
           let option = document.createElement('option');
           option.value = subcategory.id;
@@ -181,28 +179,48 @@
           const headingField = document.querySelector(`input[name="titles[${index + 1}][heading]"]`);
           const descriptionField = document.querySelector(`input[name="titles[${index + 1}][description]"]`);
 
-          if (titleField) titleField.value = title.title;
-          if (headingField) headingField.value = title.heading;
-          if (descriptionField) descriptionField.value = title.description;
+          if (titleField) titleField.value = title.title || '';  // Handle null values
+          if (headingField) headingField.value = title.heading || '';  // Handle null values
+          if (descriptionField) descriptionField.value = title.description || '';  // Handle null values
         });
 
         // Set the CKEditor content (features)
-        CKEDITOR.instances.editorFeatures.setData(product.features);
+        CKEDITOR.instances.editorFeatures.setData(product.features || ''); // Handle null features
+
+        // *** Show Existing Image URL ***
+        const productImageInput = document.getElementById('productImage');
+        const existingImageUrl = product.image_url;
+
+        // Add image URL preview if it exists
+        if (existingImageUrl) {
+          const imagePreview = document.createElement('div');
+          imagePreview.innerHTML = `<a href="${existingImageUrl}" target="_blank">View Existing Image</a>`;
+          productImageInput.parentElement.appendChild(imagePreview);
+        }
 
         // Populate PDFs (clear existing, then add from product)
         document.getElementById('pdfContainer').innerHTML = ''; // Clear previous PDFs
         product.pdfs.forEach((pdf, index) => {
           addMorePDF(); // Add more PDF fields dynamically
+
           const pdfHeadingField = document.querySelector(`input[name="pdfs[${index + 1}][heading]"]`);
-          if (pdfHeadingField) pdfHeadingField.value = pdf.heading;
+          if (pdfHeadingField) pdfHeadingField.value = pdf.heading || '';  // Handle null values
+
           const pdfFileInput = document.querySelector(`input[name="pdfs[${index + 1}][file]"]`);
-          if (pdfFileInput) pdfFileInput.dataset.pdfUrl = pdf.pdf_url; // Store the existing PDF URL
+          const pdfContainer = document.getElementById(`pdf-${index + 1}`);
+          if (pdfFileInput && pdfContainer) {
+            // Add the existing PDF link for reference
+            const pdfLink = document.createElement('div');
+            pdfLink.innerHTML = `<a href="${pdf.pdf_url}" target="_blank">View Existing PDF ${index + 1}</a>`;
+            pdfContainer.appendChild(pdfLink);
+          }
         });
 
       } catch (error) {
         console.error("Error fetching product data:", error);
       }
     }
+
     // Function to extract productId from the URL
     function getProductIdFromURL() {
       const params = new URLSearchParams(window.location.search);
@@ -375,6 +393,7 @@
       </div>
     </div>
 
+    <!-- Product Image -->
     <div class="form-name">Product Image</div>
     <div class="form-txtfld">
       <input type="file" id="productImage">
@@ -407,17 +426,17 @@
       </div>
     </div>
 
+    <!-- Upload PDFs Section -->
     <div class="form-raw" style="width:100%;">
       <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Upload PDFs</h1>
       <div id="pdfContainer"></div>
       <div class="form-raw">
         <div class="form-name">&nbsp;</div>
-        <div class="form-txtfld" style="width: 320px; text-align: right;">
+        <div class="form-txtfld" style="width: 320px; text-align: left;">
           <a href="javascript:void(0)" onclick="addMorePDF()">Add More PDFs +</a>
         </div>
       </div>
     </div>
-
     <div class="form-raw">
       <div class="form-name">Active</div>
       <div class="form-txtfld">
