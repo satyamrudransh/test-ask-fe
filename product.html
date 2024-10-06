@@ -9,8 +9,59 @@
   <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
   <script type="text/javascript" src="menu/quickmenu0.js"></script>
   <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
   <script>
+
+
+    // Function to handle logout
+    function handleLogout() {
+      // Clear the token from localStorage
+      localStorage.removeItem('token');
+      // Redirect to login page
+      window.location.href = 'index.html';
+    }
+
+    $(document).ready(function () {
+      var isNavigatingInternally = false; // Track internal navigation
+
+      // Check if the token exists in localStorage
+      var token = localStorage.getItem('token');
+      if (!token) {
+        // If no token is found, redirect to index.html
+        alert('Session expired. You will be redirected to the login page.');
+        window.location.href = 'index.html';
+      }
+
+      // Logout functionality when clicking the logout button
+      $('#logoutBtn').click(function (event) {
+        event.preventDefault(); // Prevent default action
+        handleLogout(); // Call the logout function
+      });
+
+      // Detect internal navigation by looking for link clicks
+      $('a').on('click', function (event) {
+        isNavigatingInternally = true; // Set this to true for internal page navigation
+      });
+
+      // Handle the unload event only for external navigation or page refresh
+      window.addEventListener('beforeunload', function (e) {
+        if (!isNavigatingInternally) {
+          // Remove token only if navigating away or refreshing (not internal navigation)
+          localStorage.removeItem('token');
+        }
+      });
+
+      // Fetch products when the page loads
+      fetchProducts();
+      // Initialize CKEditor for the features field
+      CKEDITOR.replace('editorFeatures');
+      // Fetch categories when the page loads
+      fetchCategories();
+    });
+
+
+
     let titleCount = 1;
     let pdfCount = 1;
 
@@ -143,46 +194,55 @@
 
     // Function to add more PDF fields dynamically
     function addMorePDF() {
-      pdfCount++;
+      pdfCount++; // Increment the PDF count
       const pdfContainer = document.getElementById('pdfContainer');
 
       const newPDFField = `
-        <div class="pdf-block" id="pdf-${pdfCount}">
-          <div class="form-raw">
-            <div class="form-name">PDF Heading ${pdfCount}</div>
-            <div class="form-txtfld">
-              <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
-            </div>
-          </div>
-          <div class="form-raw">
-            <div class="form-name">&nbsp;</div>
-            <div class="form-txtfld txtfld50">
-              <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
-            </div>
-            <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
-              <img src="images/delete.gif" alt="Delete">
-            </a>
-          </div>
+    <div class="pdf-block" id="pdf-${pdfCount}">
+      <div class="form-raw">
+        <div class="form-name">PDF Heading ${pdfCount}</div>
+        <div class="form-txtfld">
+          <input type="text" name="pdfs[${pdfCount}][heading]" placeholder="PDF Heading ${pdfCount}">
         </div>
-      `;
+      </div>
+      <div class="form-raw">
+        <div class="form-name">&nbsp;</div>
+        <div class="form-txtfld txtfld50">
+          <input type="file" name="pdfs[${pdfCount}][file]" accept=".pdf">
+        </div>
+        <a href="javascript:void(0);" onclick="deletePDF('pdf-${pdfCount}')">
+          <img src="images/delete.gif" alt="Delete">
+        </a>
+      </div>
+    </div>
+  `;
 
       pdfContainer.insertAdjacentHTML('beforeend', newPDFField);
     }
 
-    // // Function to delete a title section
-    // function deleteDescription(fieldId) {
-    //   const fieldToRemove = document.getElementById(fieldId);
-    //   if (fieldToRemove) {
-    //     fieldToRemove.remove();
-    //   }
-    // }
-
-    // Function to delete a PDF section
+    // Function to delete a PDF section and renumber the remaining PDFs
     function deletePDF(fieldId) {
       const pdfToRemove = document.getElementById(fieldId);
       if (pdfToRemove) {
         pdfToRemove.remove();
       }
+
+      // Renumber all remaining PDF blocks
+      const pdfBlocks = document.querySelectorAll('.pdf-block');
+      pdfBlocks.forEach((block, index) => {
+        const pdfName = block.querySelector('.form-name');
+        pdfName.innerHTML = `PDF Heading ${index + 1}`; // Update the label
+        block.id = `pdf-${index + 1}`; // Update the block ID
+
+        // Update the input field names and placeholders to match the new order
+        const inputFields = block.querySelectorAll('input');
+        inputFields[0].setAttribute('name', `pdfs[${index + 1}][heading]`);
+        inputFields[0].setAttribute('placeholder', `PDF Heading ${index + 1}`);
+        inputFields[1].setAttribute('name', `pdfs[${index + 1}][file]`);
+      });
+
+      // Update pdfCount to reflect the current number of PDFs
+      pdfCount = pdfBlocks.length;
     }
 
     // Function to reset form fields
@@ -222,7 +282,7 @@
 
       // Reset the title counter
       titleCount = 1;
-   
+
 
       document.getElementById('pdfContainer').innerHTML = `
       <div class="pdf-block" id="pdf-1">
@@ -245,70 +305,7 @@
       document.getElementById('activeStatus').checked = false;
     }
 
-    // // Function to handle form submission and add product
-    // async function addProduct() {
-    //   const productName = document.getElementById('productName').value;
-    //   const isActive = document.querySelector('input[type="checkbox"]').checked ? 1 : 0;
-    //   const shortDescription = document.getElementById('shortDescription').value;
-    //   const selectedCategoryId = document.getElementById('categorySelect').value;
-    //   const selectedSubcategoryIds = Array.from(document.getElementById('subcategorySelect').selectedOptions).map(option => option.value);
-    //   const features = CKEDITOR.instances.editorFeatures.getData(); // Get CKEditor data
-    //   const productImageInput = document.getElementById('productImage');
-    //   const productImage = productImageInput ? productImageInput.files[0] : null;
 
-    //   if (!productName || !selectedCategoryId || selectedSubcategoryIds.length === 0) {
-    //     alert("Please fill all the required fields.");
-    //     return;
-    //   }
-
-    //   const formData = new FormData();
-    //   formData.append('product_name', productName);
-    //   formData.append('short_description', shortDescription);
-    //   formData.append('category_id', selectedCategoryId);
-    //   formData.append('status', isActive);
-    //   formData.append('features', features);
-    //   if (productImage) formData.append('product_image', productImage);
-    //   selectedSubcategoryIds.forEach(subcategoryId => {
-    //     formData.append('subcategories[]', subcategoryId);
-    //   });
-
-    //   document.querySelectorAll('.title-block').forEach((titleBlock, index) => {
-    //     const title = titleBlock.querySelector(`input[name="titles[${index + 1}][title]"]`)?.value || "";
-    //     const heading = titleBlock.querySelector(`input[name="titles[${index + 1}][heading]"]`)?.value || "";
-    //     const description = titleBlock.querySelector(`input[name="titles[${index + 1}][description]"]`)?.value || "";
-    //     formData.append(`titles[${index}][title]`, title);
-    //     formData.append(`titles[${index}][heading]`, heading);
-    //     formData.append(`titles[${index}][description]`, description);
-    //   });
-
-    //   document.querySelectorAll('.pdf-block').forEach((pdfBlock, index) => {
-    //     const pdfHeading = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][heading]"]`)?.value || "";
-    //     const pdfFile = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][file]"]`)?.files[0];
-    //     if (pdfFile) {
-    //       formData.append(`pdf_headings[${index}]`, pdfHeading);
-    //       formData.append(`pdf_files[${index}]`, pdfFile);
-    //     }
-    //   });
-
-    //   try {
-    //     const response = await fetch('http://localhost:8096/api/product', {
-    //       method: 'POST',
-    //       body: formData
-    //     });
-
-    //     if (response.ok) {
-    //       resetFormFields(); // Clear the form fields after successful submission
-    //       const newProduct = await response.json();
-    //       appendNewProductToTable(newProduct); // Add the new product to the table dynamically
-    //       alert("Product added successfully!");
-    //       resetFormFields(); // Clear the form fields after successful submission
-    //     } else {
-    //       alert("Failed to add product. Please try again.");
-    //     }
-    //   } catch (error) {
-    //     console.error("Error adding product:", error);
-    //   }
-    // }
 
     // Function to append the newly added product to the table dynamically
     function appendNewProductToTable(product) {
@@ -517,11 +514,13 @@
       document.querySelectorAll('.pdf-block').forEach((pdfBlock, index) => {
         const pdfHeading = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][heading]"]`)?.value || "";
         const pdfFile = pdfBlock.querySelector(`input[name="pdfs[${index + 1}][file]"]`)?.files[0];
+
         if (pdfFile) {
-          formData.append(`pdf_headings[${index}]`, pdfHeading);
-          formData.append(`pdf_files[${index}]`, pdfFile);
+          formData.append(`pdf_headings[${index}]`, pdfHeading); // Send the PDF heading
+          formData.append('pdf_files[]', pdfFile); // Append the PDF file as an array
         }
       });
+
 
       try {
         const response = await fetch('http://localhost:8096/api/product', {
@@ -654,6 +653,11 @@
         </div>
       </div>
 
+
+
+      </aside>
+      <div class="clear"></div>
+
       <!-- Description Section -->
       <div class="form-raw" style="width:100%;">
         <h1 style="border-bottom: 1px solid #CCC; padding-bottom: 10px; margin: 20px 0 10px 0;">Description</h1>
@@ -733,6 +737,7 @@
         </div>
       </div>
 
+
       <!-- Submit Button Section -->
       <div class="form-raw">
         <div class="form-name">&nbsp;</div>
@@ -740,43 +745,45 @@
           <input type="button" class="btn" value="Submit" onclick="addProduct()">
         </div>
       </div>
-      <div class="clear"></div>
+    </div>
 
-      <div id="wrap2">
-        <h2>Product List</h2>
-        <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
-          <thead>
-            <tr>
-              <th width="53" align="left" valign="middle">Sr.No.</th>
-              <th width="153" align="left" valign="middle">Category</th>
-              <th width="153" align="left" valign="middle">Subcategories</th>
-              <th width="71" align="left" valign="middle">Product Name</th>
-              <th width="408" align="left" valign="middle">Short Description</th>
-              <th align="left" valign="middle">Full Description</th>
-              <th width="49" align="left" valign="middle">Status</th>
-              <th width="49" align="left" valign="middle">Edit</th>
-              <th width="61" align="left" valign="middle">Remove</th>
-            </tr>
-          </thead>
-          <tbody id="productTableBody">
-            <!-- Product rows will be populated here dynamically -->
-          </tbody>
-        </table>
+    <div class="clear">&nbsp;</div>
+  </div>
+
+  <div id="wrap2">
+    <h2>Product List</h2>
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" class="admintable">
+      <thead>
+        <tr>
+          <th width="53" align="left" valign="middle">Sr.No.</th>
+          <th width="153" align="left" valign="middle">Category</th>
+          <th width="153" align="left" valign="middle">Subcategories</th>
+          <th width="71" align="left" valign="middle">Product Name</th>
+          <th width="408" align="left" valign="middle">Short Description</th>
+          <th align="left" valign="middle">Full Description</th>
+          <th width="49" align="left" valign="middle">Status</th>
+          <th width="49" align="left" valign="middle">Edit</th>
+          <th width="61" align="left" valign="middle">Remove</th>
+        </tr>
+      </thead>
+      <tbody id="productTableBody">
+        <!-- Product rows will be populated here dynamically -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="clear"></div>
+  <footer>
+    <footer class="whitefoter">
+      <div class="whitefooter-cont">
+        <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
+        <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
+          <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd." title="AKS Websoft Consulting Pvt. Ltd.">
+        </a>
+        <div class="clear"></div>
       </div>
-
-      <div class="clear"></div>
-      <footer>
-        <footer class="whitefoter">
-          <div class="whitefooter-cont">
-            <div style="float:left;">Copyright © AKS Machine Test. All Rights Reserved.</div>
-            <a href="https://www.akswebsoft.com/" target="_blank" style="float:right;">
-              <img src="images/akslogo.png" alt="AKS Websoft Consulting Pvt. Ltd."
-                title="AKS Websoft Consulting Pvt. Ltd.">
-            </a>
-            <div class="clear"></div>
-          </div>
-        </footer>
-      </footer>
+    </footer>
+  </footer>
 </body>
 
 </html>

@@ -8,8 +8,20 @@
   <link href="menu/quickmenu0.css" rel="stylesheet" type="text/css" media="screen" />
   <script type="text/javascript" src="menu/quickmenu0.js"></script>
   <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Add jQuery if not already included -->
 
   <script>
+
+    // Function to handle logout
+    function handleLogout() {
+      // Clear the token from localStorage
+      localStorage.removeItem('token');
+      // Redirect to login page
+      window.location.href = 'index.html';
+    }
+
+    
+
     // Function to fetch active categories
     async function fetchCategories() {
       try {
